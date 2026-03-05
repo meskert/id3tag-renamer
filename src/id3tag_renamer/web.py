@@ -105,7 +105,12 @@ async def index(request: Request, username: str = Depends(get_current_username))
     })
 
 @app.post("/scan")
-async def scan_dir(directory: str = Form(...), username: str = Depends(get_current_username)):
+async def scan_dir(directory: str = Form(""), username: str = Depends(get_current_username)):
+    if not directory or directory.strip() == "":
+        manager.directory = None
+        manager.files = []
+        return RedirectResponse(url="/", status_code=303)
+        
     manager.directory = get_safe_path(directory)
     manager.scan()
     return RedirectResponse(url="/", status_code=303)
