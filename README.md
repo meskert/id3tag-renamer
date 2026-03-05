@@ -268,7 +268,6 @@ id3tag-renamer/
 ├── src/
 │   └── id3tag_renamer/
 │       ├── __init__.py       # Core tag manipulation logic
-│       ├── cli.py            # Command-line interface
 │       ├── web.py            # FastAPI web application
 │       └── templates/
 │           └── index.html    # Single-page web interface
