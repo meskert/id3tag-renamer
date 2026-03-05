@@ -10,8 +10,7 @@
         .navbar-brand { font-weight: bold; }
         .main-content { display: flex; height: calc(100vh - 100px); overflow: hidden; }
         .left-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-        .right-panel { width: 350px; flex-shrink: 0; display: flex; flex-direction: column; border-left: 1px solid #dee2e6; background: #f8f9fa; }
-        .table-responsive { flex: 1; overflow: auto; }
+        .table-responsive { flex: 1; overflow: auto; overflow-x: auto; }
         .table { table-layout: auto; width: 100%; border-collapse: separate; border-spacing: 0; }
         .table th, .table td { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; position: relative; border-left: 1px solid #dee2e6; max-width: 300px; }
         .table th:first-child, .table td:first-child { border-left: none; }
@@ -79,15 +78,23 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarContent">
-            <form action="/scan" method="post" class="d-flex ms-auto align-items-center gap-2 py-2 py-lg-0">
-                <input type="hidden" name="mode" value="{{ mode }}">
-                <div class="input-group input-group-sm" style="width: 400px;">
-                    <span class="input-group-text bg-dark text-light border-secondary">Dir</span>
-                    <input type="text" class="form-control bg-dark text-light border-secondary" id="directory" name="directory" value="{{ directory }}" placeholder="/music">
-                    <button class="btn btn-outline-secondary" type="button" id="browse-btn" data-bs-toggle="modal" data-bs-target="#browseModal">Browse</button>
-                    <button type="submit" class="btn btn-primary">Scan</button>
-                </div>
-            </form>
+            <div class="d-flex ms-auto align-items-center gap-2 py-2 py-lg-0">
+                <select class="form-select form-select-sm bg-dark text-light border-secondary" id="mode-nav" style="width: 180px;">
+                    <option value="rename" {% if mode =="rename" %}selected{% endif %}>Rename from tags</option>
+                    <option value="tag" {% if mode =="tag" %}selected{% endif %}>Tag from filename</option>
+                    <option value="manual" {% if mode =="manual" %}selected{% endif %}>Manual tag update</option>
+                </select>
+                <button type="button" class="btn btn-success btn-sm" id="nav-preview-btn" disabled>Preview</button>
+                <form action="/scan" method="post" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="mode" id="mode-input" value="{{ mode }}">
+                    <div class="input-group input-group-sm" style="width: 400px;">
+                        <span class="input-group-text bg-dark text-light border-secondary">Dir</span>
+                        <input type="text" class="form-control bg-dark text-light border-secondary" id="directory" name="directory" value="{{ directory }}" placeholder="/music">
+                        <button class="btn btn-outline-secondary" type="button" id="browse-btn" data-bs-toggle="modal" data-bs-target="#browseModal">Browse</button>
+                        <button type="submit" class="btn btn-primary">Scan</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </nav>
 
@@ -122,7 +129,80 @@
             </div>
         </div>
 
-        <!-- Single File Edit Modal -->
+        <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="previewModalLabel">Preview Changes</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="modal-album-art-preview" class="mb-3 text-center" style="display: none;">
+                            <img id="modal-preview-img" src="#" alt="Album Art" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
+                        </div>
+                        <div id="preview-content-area">
+                            {% if changes %}
+                            <div class="preview-list-container" style="max-height: 400px; overflow-y: auto;">
+                                <div class="list-group list-group-flush">
+                                    {% for change in changes %}
+                                    <div class="list-group-item px-0 py-2 border-0">
+                                        <small>
+                                            {% if change.type == 'rename' %}
+                                                <div class="text-primary fw-bold mb-1">RENAME</div>
+                                                <div class="text-muted small mb-1">{{ change.root_rel_path }}</div>
+                                                <div class="text-muted text-truncate mb-1" title="{{ change.old_path.name }}">{{ change.old_path.name }}</div>
+                                                <div class="fw-bold text-truncate" title="{{ change.new_path.name }}">→ {{ change.new_path.name }}</div>
+                                            {% elif change.type == 'tag' %}
+                                                <div class="text-info fw-bold mb-1">TAGS</div>
+                                                <div class="text-muted small mb-1">{{ change.root_rel_path }}</div>
+                                                <div class="text-muted text-truncate mb-2" title="{{ change.path.name }}">{{ change.path.name }}</div>
+                                                {% for tag, val in change.changes.items() %}
+                                                    <div class="ps-2 border-start border-2 border-info mb-1">
+                                                        <span class="text-muted text-uppercase" style="font-size: 0.7rem;">{{ tag }}:</span><br>
+                                                        <span class="fw-bold">{{ val }}</span>
+                                                    </div>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% else %}
+                                <p class="text-muted text-center">No changes to preview.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        {% if changes %}
+                        <form action="/apply" method="post" id="apply-form">
+                            <input type="hidden" name="pattern" value="{{ pattern or '' }}">
+                            <input type="hidden" name="mode" value="{{ mode }}">
+                            {% if selected_indices %}
+                                {% for idx in selected_indices %}
+                                <input type="hidden" name="selected_files" value="{{ idx }}">
+                                {% endfor %}
+                            {% endif %}
+                            
+                            <!-- Persistent tag values for manual mode -->
+                            {% if mode == 'manual' %}
+                                <input type="hidden" name="artist" value="{{ artist or '' }}">
+                                <input type="hidden" name="album" value="{{ album or '' }}">
+                                <input type="hidden" name="title" value="{{ title or '' }}">
+                                <input type="hidden" name="track" value="{{ track or '' }}">
+                                <input type="hidden" name="genre" value="{{ genre or '' }}">
+                                <input type="hidden" name="date" value="{{ date or '' }}">
+                                <input type="hidden" name="comment" value="{{ comment or '' }}">
+                            {% endif %}
+                            
+                            <button type="submit" class="btn btn-danger">Apply Changes</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
@@ -133,7 +213,7 @@
                         </div>
                         <div class="modal-body">
                             <input type="hidden" name="selected_files" id="edit-file-index">
-                            <div class="row g-3">
+                        <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted">Artist</label>
                                     <input type="text" class="form-control" name="artist" id="edit-artist">
@@ -150,15 +230,30 @@
                                     <label class="form-label small text-muted">Track #</label>
                                     <input type="text" class="form-control" name="track" id="edit-track">
                                 </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted">Genre</label>
+                                    <input type="text" class="form-control" name="genre" id="edit-genre">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted">Date</label>
+                                    <input type="text" class="form-control" name="date" id="edit-date">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted">Comment</label>
+                                    <input type="text" class="form-control" name="comment" id="edit-comment">
+                                </div>
+                                <div class="col-12 text-center" id="edit-album-art-container" style="display: none;">
+                                    <img id="edit-album-art-preview" src="#" alt="Album Art" class="img-fluid rounded shadow-sm mb-2" style="max-height: 150px;">
+                                </div>
                                 <div class="col-12">
-                                    <label class="form-label small text-muted">Album Art</label>
-                                    <input type="file" class="form-control" name="album_art" accept="image/jpeg,image/png">
+                                    <label class="form-label small text-muted">Update Album Art</label>
+                                    <input type="file" class="form-control" name="album_art" id="edit-album-art-input" accept="image/jpeg,image/png">
                                 </div>
                             </div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Apply Changes</button>
+                            <button type="submit" class="btn btn-primary">Preview Changes</button>
                         </div>
                     </form>
                 </div>
@@ -168,62 +263,52 @@
         {% if directory %}
         <div class="controls-bar">
             {% if files %}
-            <form action="{% if mode == 'manual' %}/update_tags{% else %}/preview{% endif %}" method="post" id="main-form" enctype="multipart/form-data">
-                <div class="row g-2 align-items-center">
-                    <div class="col-auto">
-                        <select class="form-select form-select-sm" id="mode" name="mode" style="width: 180px;">
-                            <option value="rename" {% if mode == 'rename' %}selected{% endif %}>Rename from tags</option>
-                            <option value="tag" {% if mode == 'tag' %}selected{% endif %}>Tag from filename</option>
-                            <option value="manual" {% if mode == 'manual' %}selected{% endif %}>Manual tag update</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col" id="pattern-container" {% if mode == 'manual' %}style="display: none;"{% endif %}>
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" id="pattern" name="pattern" value="{{ pattern or '{artist} - {title}' }}" placeholder="Pattern / Mask">
-                            <button type="submit" class="btn btn-success">Preview</button>
+            <form action="{% if mode =="manual" %}/update_tags{% else %}/preview{% endif %}" method="post" id="main-form" enctype="multipart/form-data">
+                <input type="hidden" id="mode" name="mode" value="{{ mode }}">
+
+                <!-- Pattern Mode Fields -->
+                <div id="pattern-container" {% if mode =="manual" %}style="display: none;"{% endif %}>
+                    <input type="text" class="form-control form-control-sm" id="pattern" name="pattern" value="{{ pattern or '{artist} - {title}' }}" placeholder="Pattern / Mask">
+                    <small class="text-muted" id="pattern-help" style="font-size: 0.75rem;">
+                        {% if mode == 'tag' %}Use %tag% format{% else %}Use {tag} format{% endif %}
+                    </small>
+                </div>
+
+                <!-- Manual Tag Update Fields -->
+                <div id="manual-fields" {% if mode != 'manual' %}style="display: none;"{% endif %}>
+                    <div class="row g-2">
+                        <div class="col-md-2">
+                            <label class="small text-muted mb-1">Artist</label>
+                            <input type="text" class="form-control form-control-sm" id="artist" name="artist" placeholder="Artist" value="{{ artist or '' }}">
                         </div>
-                    </div>
-                    
-                    <!-- Manual Tag Update Fields -->
-                    <div id="manual-fields" class="col" {% if mode != 'manual' %}style="display: none;"{% endif %}>
-                        <div class="row gx-2 gy-2">
-                            <div class="col-md-3">
-                                <label class="small text-muted mb-0">Artist</label>
-                                <input type="text" class="form-control form-control-sm" id="artist" name="artist" placeholder="Artist">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="small text-muted mb-0">Album</label>
-                                <input type="text" class="form-control form-control-sm" id="album" name="album" placeholder="Album">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="small text-muted mb-0">Title</label>
-                                <input type="text" class="form-control form-control-sm" id="title" name="title" placeholder="Title">
-                            </div>
-                            <div class="col-md-1">
-                                <label class="small text-muted mb-0">Tr#</label>
-                                <input type="text" class="form-control form-control-sm" id="track" name="track" placeholder="Tr#">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="small text-muted mb-0">Album Art</label>
-                                <input type="file" class="form-control form-control-sm" id="album_art" name="album_art" accept="image/jpeg,image/png">
-                            </div>
-                            <div class="col-12 text-end">
-                                <button type="submit" class="btn btn-success btn-sm">Preview Changes</button>
-                            </div>
+                        <div class="col-md-2">
+                            <label class="small text-muted mb-1">Album</label>
+                            <input type="text" class="form-control form-control-sm" id="album" name="album" placeholder="Album" value="{{ album or '' }}">
                         </div>
-                    </div>
-                    
-                    <div class="col-auto" id="pattern-help-container">
-                        <small class="text-muted" id="pattern-help" style="font-size: 0.75rem;">
-                            {% if mode == 'tag' %}
-                                Use %tag% format
-                            {% elif mode == 'manual' %}
-                                Enter tags above
-                            {% else %}
-                                Use {tag} format
-                            {% endif %}
-                        </small>
+                        <div class="col-md-3">
+                            <label class="small text-muted mb-1">Title</label>
+                            <input type="text" class="form-control form-control-sm" id="title" name="title" placeholder="Title" value="{{ title or '' }}">
+                        </div>
+                        <div class="col-md-1">
+                            <label class="small text-muted mb-1">Track</label>
+                            <input type="text" class="form-control form-control-sm" id="track" name="track" placeholder="#" value="{{ track or '' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small text-muted mb-1">Genre</label>
+                            <input type="text" class="form-control form-control-sm" id="genre" name="genre" placeholder="Genre" value="{{ genre or '' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small text-muted mb-1">Date</label>
+                            <input type="text" class="form-control form-control-sm" id="date" name="date" placeholder="Date" value="{{ date or '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="small text-muted mb-1">Comment</label>
+                            <input type="text" class="form-control form-control-sm" id="comment" name="comment" placeholder="Comment" value="{{ comment or '' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small text-muted mb-1">Album Art</label>
+                            <input type="file" class="form-control form-control-sm" id="album_art" name="album_art" accept="image/jpeg,image/png">
+                        </div>
                     </div>
                 </div>
             </form>
@@ -247,14 +332,29 @@
                                 <th class="sortable" data-column="3">Album</th>
                                 <th class="sortable" data-column="4">Title</th>
                                 <th class="sortable" data-column="5" style="width: 60px;">Tr#</th>
+                                <th class="sortable" data-column="6">Genre</th>
+                                <th class="sortable" data-column="7">Date</th>
+                                <th class="sortable" data-column="8">Comment</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for file in files %}
                             <tr>
                                 <td class="d-flex gap-1 align-items-center">
-                                    <input type="checkbox" class="file-select" value="{{ loop.index0 }}" {% if loop.index0 in selected_indices %}checked{% endif %}>
-                                    <button type="button" class="btn btn-outline-primary btn-xs p-0 px-1 single-edit-btn" data-index="{{ loop.index0 }}" title="Edit single file">
+                                    <input type="checkbox" class="file-select" value="{{ file.index }}" {% if file.index in selected_indices %}checked{% endif %}>
+                                    <button type="button" class="btn btn-outline-primary btn-xs p-0 px-1 single-edit-btn"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editModal"
+                                            data-index="{{ file.index }}"
+                                            data-artist="{{ file.artist }}"
+                                            data-album="{{ file.album }}"
+                                            data-title="{{ file.title }}"
+                                            data-track="{{ file.track }}"
+                                            data-genre="{{ file.genre }}"
+                                            data-date="{{ file.date }}"
+                                            data-comment="{{ file.comment }}"
+                                            data-filename="{{ file.name }}"
+                                            title="Edit single file">
                                         <small>✏️</small>
                                     </button>
                                 </td>
@@ -264,77 +364,19 @@
                                 <td class="text-truncate">{{ file.album }}</td>
                                 <td class="text-truncate">{{ file.title }}</td>
                                 <td>{{ file.track }}</td>
+                                <td class="text-truncate">{{ file.genre }}</td>
+                                <td class="text-truncate">{{ file.date }}</td>
+                                <td class="text-truncate">{{ file.comment }}</td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="7" class="text-center py-5 text-muted">
+                                <td colspan="10" class="text-center py-5 text-muted">
                                     No music files found or scanned in this directory.
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            <div class="right-panel">
-                <div class="preview-box">
-                    {% if changes %}
-                    <h6 class="border-bottom pb-2 mb-3">Changes ({{ changes|length }})</h6>
-                    <div class="preview-list">
-                        <div class="list-group list-group-flush">
-                            {% for change in changes %}
-                            <div class="list-group-item px-0 py-2 border-0">
-                                <small>
-                                    {% if change.type == 'rename' %}
-                                        <div class="text-primary fw-bold mb-1">RENAME</div>
-                                        <div class="text-muted small mb-1">{{ change.root_rel_path }}</div>
-                                        <div class="text-muted text-truncate mb-1" title="{{ change.old_path.name }}">{{ change.old_path.name }}</div>
-                                        <div class="fw-bold text-truncate" title="{{ change.new_path.name }}">→ {{ change.new_path.name }}</div>
-                                    {% elif change.type == 'tag' %}
-                                        <div class="text-info fw-bold mb-1">TAGS</div>
-                                        <div class="text-muted small mb-1">{{ change.root_rel_path }}</div>
-                                        <div class="text-muted text-truncate mb-2" title="{{ change.path.name }}">{{ change.path.name }}</div>
-                                        {% for tag, val in change.changes.items() %}
-                                            <div class="ps-2 border-start border-2 border-info mb-1">
-                                                <span class="text-muted text-uppercase" style="font-size: 0.7rem;">{{ tag }}:</span><br>
-                                                <span class="fw-bold">{{ val }}</span>
-                                            </div>
-                                        {% endfor %}
-                                    {% endif %}
-                                </small>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <form action="/apply" method="post" id="apply-form" class="mt-auto">
-                        <input type="hidden" name="pattern" value="{{ pattern or '' }}">
-                        <input type="hidden" name="mode" value="{{ mode }}">
-                        {% if selected_indices %}
-                            {% for idx in selected_indices %}
-                            <input type="hidden" name="selected_files" value="{{ idx }}">
-                            {% endfor %}
-                        {% endif %}
-                        
-                        <!-- Persistent tag values for manual mode -->
-                        {% if mode == 'manual' %}
-                            <input type="hidden" name="artist" value="{{ artist or '' }}">
-                            <input type="hidden" name="album" value="{{ album or '' }}">
-                            <input type="hidden" name="title" value="{{ title or '' }}">
-                            <input type="hidden" name="track" value="{{ track or '' }}">
-                        {% endif %}
-                        
-                        <button type="submit" class="btn btn-danger w-100">Apply Changes</button>
-                    </form>
-                    {% else %}
-                        <h6 class="text-muted">Preview</h6>
-                        <div id="album-art-preview" class="mb-3 text-center" style="display: none;">
-                            <img id="preview-img" src="#" alt="Album Art" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
-                        </div>
-                        <div class="preview-list d-flex align-items-center justify-content-center text-center">
-                        <p class="text-muted small">Select files, set pattern/tags and click "Preview" to see changes.</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -457,44 +499,155 @@
             document.querySelectorAll('.file-select').forEach(checkbox => {
                 checkbox.checked = e.target.checked;
             });
+            updateUIFromSelection();
         });
 
-        // Mode change help text
-        document.getElementById('mode')?.addEventListener('change', function(e) {
-            const helpText = document.getElementById('pattern-help');
-            const patternInput = document.getElementById('pattern');
-            const patternContainer = document.getElementById('pattern-container');
-            const manualFields = document.getElementById('manual-fields');
-            const mainForm = document.getElementById('main-form');
-            const scanModeInput = document.querySelector('form[action="/scan"] input[name="mode"]');
-
-            if (scanModeInput) {
-                scanModeInput.value = e.target.value;
-            }
-
-            if (e.target.value === 'tag') {
-                patternContainer.style.display = 'block';
-                manualFields.style.display = 'none';
-                mainForm.action = '/preview';
-                helpText.innerHTML = 'Use %tag% format';
-                if (patternInput.value === '{artist} - {title}') {
-                    patternInput.value = '%artist% - %title%';
-                }
-            } else if (e.target.value === 'manual') {
-                patternContainer.style.display = 'none';
-                manualFields.style.display = 'block';
-                mainForm.action = '/update_tags';
-                helpText.innerHTML = 'Enter tags above';
-            } else {
-                patternContainer.style.display = 'block';
-                manualFields.style.display = 'none';
-                mainForm.action = '/preview';
-                helpText.innerHTML = 'Use {tag} format';
-                if (patternInput.value === '%artist% - %title%') {
-                    patternInput.value = '{artist} - {title}';
-                }
-            }
+        // Individual checkbox change
+        document.querySelectorAll('.file-select').forEach(checkbox => {
+            checkbox.addEventListener('change', updateUIFromSelection);
         });
+
+        // Update manual mode fields based on selected files and enable/disable preview button
+        function updateUIFromSelection() {
+            const navPreviewBtn = document.getElementById('nav-preview-btn');
+            const selectedCheckboxes = document.querySelectorAll('.file-select:checked');
+            
+            if (navPreviewBtn) {
+                navPreviewBtn.disabled = selectedCheckboxes.length === 0;
+            }
+
+            const mode = document.getElementById('mode')?.value;
+            if (mode !== 'manual') return;
+
+            if (selectedCheckboxes.length === 0) {
+                // No selection - clear all fields
+                ['artist', 'album', 'title', 'track', 'genre', 'date', 'comment'].forEach(tag => {
+                    const input = document.getElementById(tag);
+                    if (input) {
+                        input.value = '';
+                        input.placeholder = tag.charAt(0).toUpperCase() + tag.slice(1);
+                        input.style.fontStyle = 'normal';
+                        input.style.color = '';
+                    }
+                });
+                return;
+            }
+
+            // Build files data from table rows
+            const filesData = [];
+            document.querySelectorAll('#files-table tbody tr').forEach((row, index) => {
+                const checkbox = row.querySelector('.file-select');
+                if (!checkbox) return;
+
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 10) return;
+
+                filesData.push({
+                    index: parseInt(checkbox.value),
+                    artist: cells[3].textContent.trim(),
+                    album: cells[4].textContent.trim(),
+                    title: cells[5].textContent.trim(),
+                    track: cells[6].textContent.trim(),
+                    genre: cells[7].textContent.trim(),
+                    date: cells[8].textContent.trim(),
+                    comment: cells[9].textContent.trim()
+                });
+            });
+
+            // Get selected files data
+            const selectedFiles = [];
+            selectedCheckboxes.forEach(checkbox => {
+                const fileIndex = parseInt(checkbox.value);
+                const fileData = filesData.find(f => f.index === fileIndex);
+                if (fileData) selectedFiles.push(fileData);
+            });
+
+            // Update each tag field
+            ['artist', 'album', 'title', 'track', 'genre', 'date', 'comment'].forEach(tag => {
+                const input = document.getElementById(tag);
+                if (!input) return;
+
+                const values = selectedFiles.map(f => f[tag]);
+                const uniqueValues = [...new Set(values)];
+
+                if (uniqueValues.length === 1) {
+                    // All same value
+                    input.value = uniqueValues[0];
+                    input.placeholder = tag.charAt(0).toUpperCase() + tag.slice(1);
+                    input.style.fontStyle = 'normal';
+                    input.style.color = '';
+                } else {
+                    // Multiple different values
+                    input.value = '';
+                    input.placeholder = '<multiple values>';
+                    input.style.fontStyle = 'italic';
+                    input.style.color = '#6c757d';
+                }
+            });
+        }
+
+        // Initialize on page load
+        updateUIFromSelection();
+
+        // Nav preview button functionality
+        const navPreviewBtn = document.getElementById('nav-preview-btn');
+        const mainForm = document.getElementById('main-form');
+
+        if (navPreviewBtn) {
+            navPreviewBtn.addEventListener('click', function() {
+                if (mainForm) {
+                    mainForm.requestSubmit();
+                }
+            });
+        }
+
+        // Mode change logic - sync navbar mode selector with hidden input
+        const modeNav = document.getElementById('mode-nav');
+        const modeInput = document.getElementById('mode');
+        const modeInputScan = document.getElementById('mode-input');
+
+        if (modeNav) {
+            modeNav.addEventListener('change', function(e) {
+                const newMode = e.target.value;
+
+                // Reset URL when mode changes
+                window.history.replaceState(null, '', '/?mode=' + newMode);
+
+                // Update hidden inputs
+                if (modeInput) modeInput.value = newMode;
+                if (modeInputScan) modeInputScan.value = newMode;
+
+                // Update UI
+                const helpText = document.getElementById('pattern-help');
+                const patternInput = document.getElementById('pattern');
+                const patternContainer = document.getElementById('pattern-container');
+                const manualFields = document.getElementById('manual-fields');
+                const mainForm = document.getElementById('main-form');
+
+                if (newMode === 'tag') {
+                    if (patternContainer) patternContainer.style.display = 'block';
+                    if (manualFields) manualFields.style.display = 'none';
+                    if (mainForm) mainForm.action = '/preview';
+                    if (helpText) helpText.innerHTML = 'Use %tag% format';
+                    if (patternInput && patternInput.value === '{artist} - {title}') {
+                        patternInput.value = '%artist% - %title%';
+                    }
+                } else if (newMode === 'manual') {
+                    if (patternContainer) patternContainer.style.display = 'none';
+                    if (manualFields) manualFields.style.display = 'block';
+                    if (mainForm) mainForm.action = '/update_tags';
+                    updateUIFromSelection();
+                } else {
+                    if (patternContainer) patternContainer.style.display = 'block';
+                    if (manualFields) manualFields.style.display = 'none';
+                    if (mainForm) mainForm.action = '/preview';
+                    if (helpText) helpText.innerHTML = 'Use {tag} format';
+                    if (patternInput && patternInput.value === '%artist% - %title%') {
+                        patternInput.value = '{artist} - {title}';
+                    }
+                }
+            });
+        }
 
         // Add selected file indices to form submission
         document.getElementById('main-form')?.addEventListener('submit', function(e) {
@@ -557,54 +710,97 @@
         const editModal = document.getElementById('editModal');
         if (editModal) {
             editModal.addEventListener('show.bs.modal', function (event) {
+                // Reset URL when opening edit modal
+                const currentMode = document.getElementById('mode')?.value || 'rename';
+                window.history.replaceState(null, '', '/?mode=' + currentMode);
+
                 const button = event.relatedTarget;
                 const index = button.getAttribute('data-index');
-                const row = button.closest('tr');
-                
-                // Extract current tags from table row
-                // Order: Checkbox/Edit, Path, Filename, Artist, Album, Title, Tr#
-                const path = row.cells[1].textContent;
-                const filename = row.cells[2].textContent;
-                const artist = row.cells[3].textContent;
-                const album = row.cells[4].textContent;
-                const title = row.cells[5].textContent;
-                const track = row.cells[6].textContent;
+
+                const artist = button.getAttribute('data-artist');
+                const album = button.getAttribute('data-album');
+                const title = button.getAttribute('data-title');
+                const track = button.getAttribute('data-track');
+                const genre = button.getAttribute('data-genre');
+                const date = button.getAttribute('data-date');
+                const comment = button.getAttribute('data-comment');
+                const filename = button.getAttribute('data-filename');
 
                 document.getElementById('edit-file-index').value = index;
                 document.getElementById('edit-artist').value = artist;
                 document.getElementById('edit-album').value = album;
                 document.getElementById('edit-title').value = title;
                 document.getElementById('edit-track').value = track;
-                
+                document.getElementById('edit-genre').value = genre;
+                document.getElementById('edit-date').value = date;
+                document.getElementById('edit-comment').value = comment;
+
+                // Load existing album art
+                const artPreview = document.getElementById('edit-album-art-preview');
+                const artContainer = document.getElementById('edit-album-art-container');
+                artPreview.src = `/album_art/${index}?t=${new Date().getTime()}`;
+                artContainer.style.display = 'block';
+                artPreview.onerror = function() {
+                    artContainer.style.display = 'none';
+                };
+
                 document.getElementById('editModalLabel').textContent = `Edit: ${filename}`;
             });
         }
 
-        document.querySelectorAll('.single-edit-btn').forEach(btn => {
-            btn.onclick = function() {
-                const modal = new bootstrap.Modal(editModal);
-                modal.show(this);
-            };
-        });
+        // Auto-show preview modal if changes exist
+        {% if changes %}
+        (function() {
+            const previewModalEl = document.getElementById('previewModal');
+            if (previewModalEl) {
+                const previewModal = new bootstrap.Modal(previewModalEl);
+                previewModal.show();
 
-        // Image preview for manual mode
-        const albumArtInput = document.getElementById('album_art');
-        const albumArtPreview = document.getElementById('album-art-preview');
-        const previewImg = document.getElementById('preview-img');
+                // Reset URL when modal is closed
+                previewModalEl.addEventListener('hidden.bs.modal', function() {
+                    window.history.replaceState(null, '', '/?mode={{ mode }}');
+                });
+            }
+            
+            // Show uploaded album art in preview if manual mode and file exists
+            const uploadedArt = document.getElementById('album_art');
+            if (uploadedArt && uploadedArt.files && uploadedArt.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const modalImg = document.getElementById('modal-preview-img');
+                    const modalArtContainer = document.getElementById('modal-album-art-preview');
+                    if (modalImg && modalArtContainer) {
+                        modalImg.src = e.target.result;
+                        modalArtContainer.style.display = 'block';
+                    }
+                }
+                reader.readAsDataURL(uploadedArt.files[0]);
+            }
+        })();
+        {% endif %}
 
-        if (albumArtInput) {
-            albumArtInput.addEventListener('change', function() {
+        // Image preview for single edit modal
+        const editArtInput = document.getElementById('edit-album-art-input');
+        if (editArtInput) {
+            editArtInput.addEventListener('change', function() {
                 const file = this.files[0];
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = function(e) {
-                        previewImg.src = e.target.result;
-                        albumArtPreview.style.display = 'block';
+                        document.getElementById('edit-album-art-preview').src = e.target.result;
+                        document.getElementById('edit-album-art-container').style.display = 'block';
                     }
                     reader.readAsDataURL(file);
-                } else {
-                    albumArtPreview.style.display = 'none';
                 }
+            });
+        }
+
+        // Image preview for manual mode (main screen) - just to show it before preview
+        const mainAlbumArtInput = document.getElementById('album_art');
+        if (mainAlbumArtInput) {
+            mainAlbumArtInput.addEventListener('change', function() {
+                // We don't have a place on main screen anymore, but we could add one if desired.
+                // For now, it will show in the preview modal after clicking "Preview Changes".
             });
         }
 

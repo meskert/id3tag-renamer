@@ -47,7 +47,7 @@ DEFAULT_MUSIC_DIR = os.getenv("MUSIC_DIR", "/music")
 def _get_files_data():
     files_data = []
     root = Path(DEFAULT_MUSIC_DIR).resolve()
-    for f in manager.files:
+    for i, f in enumerate(manager.files):
         try:
             rel_path = str(f.path.parent.relative_to(manager.directory))
             if rel_path == ".":
@@ -62,15 +62,20 @@ def _get_files_data():
         except ValueError:
             root_rel_path = str(f.path.parent)
 
-        files_data.append({
+        data = {
+            "index": i,
             "name": f.path.name,
             "rel_path": rel_path,
             "root_rel_path": root_rel_path,
-            "artist": f.get_tag("artist"),
-            "album": f.get_tag("album"),
-            "title": f.get_tag("title"),
-            "track": f.get_tag("track")
-        })
+        }
+        for tag in f.get_supported_tags():
+            tag_value = f.get_tag(tag)
+            data[tag] = tag_value
+            # Debug print for first file only
+            if i == 0:
+                print(f"File {f.path.name}: {tag} = {repr(tag_value)}")
+
+        files_data.append(data)
     return files_data
 
 manager = MusicManager(directory=None)
@@ -141,6 +146,11 @@ async def index(request: Request, mode: str = "rename", username: str = Depends(
         "music_root": str(DEFAULT_MUSIC_DIR)
     })
 
+@app.get("/preview")
+async def preview_get(username: str = Depends(get_current_username)):
+    """Redirect GET requests to preview back to home"""
+    return RedirectResponse(url="/", status_code=303)
+
 @app.post("/preview")
 async def preview(
     request: Request,
@@ -163,9 +173,9 @@ async def preview(
         manager.rename_from_tags(pattern, files_to_process)
     else:
         manager.tag_from_path(pattern, files_to_process)
-        
+
     changes = manager.apply(dry_run=True)
-    
+
     # Enrich changes with root_rel_path
     root = Path(DEFAULT_MUSIC_DIR).resolve()
     for change in changes:
@@ -176,7 +186,7 @@ async def preview(
             if root_rel_path == ".": root_rel_path = ""
         except ValueError:
             root_rel_path = str(Path(path).parent)
-        
+
         change['root_rel_path'] = root_rel_path
 
     files_data = _get_files_data()
@@ -191,6 +201,11 @@ async def preview(
         "music_root": str(DEFAULT_MUSIC_DIR)
     })
 
+@app.get("/apply")
+async def apply_get(username: str = Depends(get_current_username)):
+    """Redirect GET requests to apply back to home"""
+    return RedirectResponse(url="/", status_code=303)
+
 @app.post("/apply")
 async def apply_changes(
     request: Request,
@@ -201,6 +216,9 @@ async def apply_changes(
     album: Optional[str] = Form(None),
     title: Optional[str] = Form(None),
     track: Optional[str] = Form(None),
+    genre: Optional[str] = Form(None),
+    date: Optional[str] = Form(None),
+    comment: Optional[str] = Form(None),
     username: str = Depends(get_current_username)
 ):
     if not manager.directory:
@@ -224,6 +242,9 @@ async def apply_changes(
             if album: tags["album"] = album
             if title: tags["title"] = title
             if track: tags["track"] = track
+            if genre: tags["genre"] = genre
+            if date: tags["date"] = date
+            if comment: tags["comment"] = comment
             if tags:
                 manager.update_tags(tags, files_to_process)
 
@@ -242,6 +263,11 @@ async def apply_changes(
         "music_root": str(DEFAULT_MUSIC_DIR)
     })
 
+@app.get("/update_tags")
+async def update_tags_get(username: str = Depends(get_current_username)):
+    """Redirect GET requests to update_tags back to home"""
+    return RedirectResponse(url="/", status_code=303)
+
 @app.post("/update_tags")
 async def update_tags(
     request: Request,
@@ -249,14 +275,15 @@ async def update_tags(
     album: Optional[str] = Form(None),
     title: Optional[str] = Form(None),
     track: Optional[str] = Form(None),
+    genre: Optional[str] = Form(None),
+    date: Optional[str] = Form(None),
+    comment: Optional[str] = Form(None),
     album_art: Optional[UploadFile] = File(None),
     selected_files: List[int] = Form(default=[]),
     username: str = Depends(get_current_username)
 ):
     if not manager.directory:
         return RedirectResponse(url="/", status_code=303)
-
-    # manager.scan()  # Removed automatic scan on preview
 
     # Get selected files
     if not selected_files:
@@ -269,6 +296,9 @@ async def update_tags(
     if album: tags["album"] = album
     if title: tags["title"] = title
     if track: tags["track"] = track
+    if genre: tags["genre"] = genre
+    if date: tags["date"] = date
+    if comment: tags["comment"] = comment
 
     if album_art and album_art.filename:
         content = await album_art.read()
@@ -290,7 +320,10 @@ async def update_tags(
         "artist": artist,
         "album": album,
         "title": title,
-        "track": track
+        "track": track,
+        "genre": genre,
+        "date": date,
+        "comment": comment
     })
 
 @app.get("/api/directories")
@@ -335,6 +368,24 @@ async def list_directories(
         "current_path": str(target.relative_to(root)) if target != root else "",
         "full_path": str(target)
     }
+
+@app.get("/album_art/{index}")
+async def get_album_art(index: int, username: str = Depends(get_current_username)):
+    if index < 0 or index >= len(manager.files):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    music_file = manager.files[index]
+    art_data = music_file.get_album_art()
+    
+    if not art_data:
+        raise HTTPException(status_code=404, detail="No album art found")
+        
+    # Detect mime type
+    mime = "image/jpeg"
+    if art_data.startswith(b"\x89PNG\r\n\x1a\n"):
+        mime = "image/png"
+        
+    return Response(content=art_data, media_type=mime)
 
 def main():
     host = os.getenv("HOST", "0.0.0.0")

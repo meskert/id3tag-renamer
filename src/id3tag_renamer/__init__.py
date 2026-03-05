@@ -15,7 +15,8 @@ class MusicFile:
 
     def get_supported_tags(self) -> List[str]:
         """Returns a list of supported tag names."""
-        return ["artist", "album", "title", "track"]
+        # Standard ID3 tags: artist, album, title, track, genre, date, comment
+        return ["artist", "album", "title", "track", "genre", "date", "comment"]
 
     def get_tag(self, key: str) -> str:
         """Helper to get tag value as string."""
@@ -28,21 +29,27 @@ class MusicFile:
             "album": ["TALB", "album", "\xa9ALB", "Album"],
             "title": ["TIT2", "title", "\xa9NAM", "Title"],
             "track": ["TRCK", "tracknumber", "trkn", "TrackNumber"],
+            "genre": ["TCON", "genre", "\xa9GEN", "Genre"],
+            "date": ["TDRC", "TYER", "date", "\xa9DAY", "Date", "Year"],
+            "comment": ["description", "DESCRIPTION", "comment", "COMMENT", "COMM", "\xa9CMT", "Comment"],
         }
 
         keys = mapping.get(key, [key])
         for k in keys:
             try:
-                # Some Mutagen tag mappings (notably Vorbis comments) can raise
-                # ValueError for invalid keys (e.g., non-ASCII or containing '=')
-                # during membership tests or lookup.
+                # Special handling for COMM frame in ID3
+                if k == "COMM":
+                    for frame in self.tags.getall("COMM"):
+                        return str(frame.text[0])
+                
                 if k in self.tags:
                     val = self.tags[k]
                     if isinstance(val, list):
-                        return str(val[0])
+                        if len(val) > 0:
+                            return str(val[0])
+                        return ""
                     return str(val)
             except (ValueError, KeyError, Exception):
-                # Be defensive: a single weird key or file shouldn't 500 the whole scan.
                 continue
         return ""
 
@@ -62,17 +69,19 @@ class MusicFile:
             "album": ["TALB", "album", "\xa9ALB", "Album"],
             "title": ["TIT2", "title", "\xa9NAM", "Title"],
             "track": ["TRCK", "tracknumber", "trkn", "TrackNumber"],
+            "genre": ["TCON", "genre", "\xa9GEN", "Genre"],
+            "date": ["TDRC", "date", "\xa9DAY", "Date"],
+            "comment": ["description", "DESCRIPTION", "comment", "COMMENT", "COMM", "\xa9CMT", "Comment"],
         }
 
         keys = mapping.get(key, [key])
 
         # Special handling for ID3 (mp3)
         import mutagen.id3
+        import mutagen.mp3
         if isinstance(self.tags, (mutagen.id3.ID3, mutagen.mp3.MP3)):
-            # If it's an MP3 file, self.tags might be the MP3 object, which has an ID3 tags attribute
             tags_obj = self.tags if isinstance(self.tags, mutagen.id3.ID3) else self.tags.tags
             if tags_obj is None:
-                # If there are no tags, we might need to create them
                 if hasattr(self.tags, "add_tags"):
                     self.tags.add_tags()
                     tags_obj = self.tags.tags
@@ -80,17 +89,24 @@ class MusicFile:
                     return
 
             for k in keys:
-                if k in ["TPE1", "TALB", "TIT2", "TRCK"]:
+                if k in ["TPE1", "TALB", "TIT2", "TRCK", "TCON", "TDRC"]:
                     frame_class = getattr(mutagen.id3, k)
                     tags_obj.setall(k, [frame_class(encoding=3, text=[value])])
+                    return
+                elif k == "COMM":
+                    tags_obj.delall("COMM")
+                    tags_obj.add(mutagen.id3.COMM(encoding=3, lang="eng", desc="", text=[value]))
                     return
 
         # For other formats (FLAC, M4A) or if above didn't return
         for k in keys:
             try:
-                if k in self.tags:
+                # For FLAC/Vorbis, keys are often lowercase and value is a list of strings
+                if hasattr(self.tags, "tags") and hasattr(self.tags.tags, "vendor"): # Likely Vorbis/FLAC
+                    self.tags[k] = [value]
+                else:
                     self.tags[k] = value
-                    return
+                return
             except (ValueError, KeyError, Exception):
                 continue
 
@@ -163,6 +179,35 @@ class MusicFile:
             except Exception:
                 pass
 
+    def get_album_art(self) -> Optional[bytes]:
+        """Extract album art from the file."""
+        if not self.tags:
+            return None
+
+        import mutagen.id3
+        import mutagen.mp3
+        import mutagen.flac
+        import mutagen.mp4
+
+        # MP3 (ID3)
+        if isinstance(self.tags, (mutagen.id3.ID3, mutagen.mp3.MP3)):
+            tags_obj = self.tags if isinstance(self.tags, mutagen.id3.ID3) else self.tags.tags
+            if tags_obj:
+                for frame in tags_obj.getall("APIC"):
+                    return frame.data
+
+        # FLAC
+        elif isinstance(self.tags, mutagen.flac.FLAC):
+            if self.tags.pictures:
+                return self.tags.pictures[0].data
+
+        # M4A
+        elif isinstance(self.tags, mutagen.mp4.MP4):
+            if "covr" in self.tags:
+                return bytes(self.tags["covr"][0])
+
+        return None
+
     def save_tags(self):
         """Save changes to the file."""
         if self.tags:
@@ -208,11 +253,19 @@ class MusicManager:
         # Get tag values
         tag_values = {
             'filename': music_file.path.stem,
-            'artist': music_file.get_tag("artist") or "Unknown Artist",
-            'album': music_file.get_tag("album") or "Unknown Album",
-            'title': music_file.get_tag("title") or music_file.path.stem,
-            'track': music_file.get_tag("track") or "00"
         }
+        for tag in music_file.get_supported_tags():
+            tag_values[tag] = music_file.get_tag(tag) or f"Unknown {tag.capitalize()}"
+        
+        # Override some defaults if they are empty
+        if not tag_values.get('artist') or tag_values['artist'] == "Unknown Artist":
+            tag_values['artist'] = "Unknown Artist"
+        if not tag_values.get('album') or tag_values['album'] == "Unknown Album":
+            tag_values['album'] = "Unknown Album"
+        if not tag_values.get('title') or tag_values['title'] == f"Unknown Title":
+            tag_values['title'] = music_file.path.stem
+        if not tag_values.get('track') or tag_values['track'] == "Unknown Track":
+            tag_values['track'] = "00"
 
         def replace_tag(match):
             tag_name = match.group(1)
@@ -280,7 +333,7 @@ class MusicManager:
         # re.escape makes %artist% -> \%artist\%
         regex_pattern = regex_pattern.replace(r'\%', '%')
         
-        supported_tags = ["artist", "album", "title", "track"]
+        supported_tags = MusicFile(None).get_supported_tags()
         for tag in supported_tags:
             regex_pattern = regex_pattern.replace(f'%{tag}%', f'(?P<{tag}>.+?)')
         
@@ -426,18 +479,34 @@ class MusicManager:
 
                         # If we have raw_tags, it's a manual update which might include binary data
                         tags_to_use = change.get("raw_tags", change.get("changes", {}))
+                        print(f"Applying tags to {change['path']}: tags_to_use = {tags_to_use}")
+                        tags_written = []
                         for tag, value in tags_to_use.items():
                             if tag == "album_art" and value == "<binary data>":
                                 # This shouldn't happen if we use raw_tags correctly
                                 continue
                             if not value and tag != "album_art":
+                                print(f"Skipping empty tag: {tag}")
                                 continue
+                            print(f"Setting {tag} = {repr(value)}")
                             music_file.set_tag(tag, value)
-                        music_file.save_tags()
+                            tags_written.append(tag)
+
+                        if tags_written:
+                            print(f"Saving tags: {tags_written}")
+                            music_file.save_tags()
+                            change["tags_written"] = tags_written
+                        else:
+                            print("No tags to save")
+                            change["tags_written"] = []
                         change["success"] = True
                     except Exception as e:
+                        import traceback
                         change["success"] = False
                         change["error"] = str(e)
+                        change["traceback"] = traceback.format_exc()
+                        print(f"Error applying tag change to {change.get('path')}: {e}")
+                        print(traceback.format_exc())
                 else:
                     change["success"] = True
             
