@@ -1,0 +1,16 @@
+services:
+  id3tag-renamer:
+    container_name: id3tag-renamer
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./music:/music
+    environment:
+      - MUSIC_DIR=/music
+      - PORT=8000
+      - HOST=0.0.0.0
+      # Recommend using .env file for credentials in production
+      - WEB_USERNAME=${WEB_USERNAME}
+      - WEB_PASSWORD=${WEB_PASSWORD}
+    restart: unless-stopped

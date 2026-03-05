@@ -1,0 +1,35 @@
+[project]
+name = "id3tag-renamer"
+version = "0.1.0"
+description = "A Python library to manipulate music files based on tags."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Your Name", email = "your.email@example.com" }]
+license = { text = "MIT" }
+dependencies = [
+    "mutagen>=1.47.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "jinja2>=3.1.0",
+    "python-multipart>=0.0.6",
+]
+
+[project.scripts]
+id3tag-renamer = "id3tag_renamer.web:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "black>=24.0.0",
+    "isort>=5.13.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+id3tag_renamer = ["templates/*"]
