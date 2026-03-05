@@ -11,7 +11,24 @@
         .main-content { display: flex; height: calc(100vh - 100px); overflow: hidden; }
         .left-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
         .right-panel { width: 350px; flex-shrink: 0; display: flex; flex-direction: column; border-left: 1px solid #dee2e6; background: #f8f9fa; }
-        .table-responsive { flex: 1; overflow-y: auto; }
+        .table-responsive { flex: 1; overflow: auto; }
+        .table { table-layout: fixed; width: 100%; border-collapse: separate; border-spacing: 0; }
+        .table th, .table td { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; position: relative; border-left: 1px solid #dee2e6; }
+        .table th:first-child, .table td:first-child { border-left: none; }
+        .resizer {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 5px;
+            background: rgba(0,0,0,0.05);
+            cursor: col-resize;
+            user-select: none;
+            z-index: 10;
+        }
+        .resizer:hover {
+            background: rgba(0,0,0,0.2);
+        }
         .preview-box {
             padding: 15px;
             display: flex;
@@ -63,6 +80,7 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarContent">
             <form action="/scan" method="post" class="d-flex ms-auto align-items-center gap-2 py-2 py-lg-0">
+                <input type="hidden" name="mode" value="{{ mode }}">
                 <div class="input-group input-group-sm" style="width: 400px;">
                     <span class="input-group-text bg-dark text-light border-secondary">Dir</span>
                     <input type="text" class="form-control bg-dark text-light border-secondary" id="directory" name="directory" value="{{ directory }}" placeholder="/music">
@@ -151,11 +169,11 @@
                     <div class="col-auto" id="pattern-help-container">
                         <small class="text-muted" id="pattern-help" style="font-size: 0.75rem;">
                             {% if mode == 'tag' %}
-                            Use %tag% format
+                                Use %tag% format
                             {% elif mode == 'manual' %}
-                            Enter tags above
+                                Enter tags above
                             {% else %}
-                            Use {tag} format
+                                Use {tag} format
                             {% endif %}
                         </small>
                     </div>
@@ -176,10 +194,11 @@
                             <tr>
                                 <th style="width: 40px;"><input type="checkbox" id="select-all"></th>
                                 <th class="sortable" data-column="0">Filename</th>
-                                <th class="sortable" data-column="1">Artist</th>
-                                <th class="sortable" data-column="2">Album</th>
-                                <th class="sortable" data-column="3">Title</th>
-                                <th class="sortable" data-column="4" style="width: 60px;">Tr#</th>
+                                <th class="sortable" data-column="1">Path</th>
+                                <th class="sortable" data-column="2">Artist</th>
+                                <th class="sortable" data-column="3">Album</th>
+                                <th class="sortable" data-column="4">Title</th>
+                                <th class="sortable" data-column="5" style="width: 60px;">Tr#</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -187,6 +206,7 @@
                             <tr>
                                 <td><input type="checkbox" class="file-select" value="{{ loop.index0 }}" {% if loop.index0 in selected_indices %}checked{% endif %}></td>
                                 <td class="text-truncate" style="max-width: 250px;">{{ file.name }}</td>
+                                <td class="text-truncate" style="max-width: 250px;">{{ file.rel_path }}</td>
                                 <td class="text-truncate" style="max-width: 150px;">{{ file.artist }}</td>
                                 <td class="text-truncate" style="max-width: 150px;">{{ file.album }}</td>
                                 <td class="text-truncate" style="max-width: 200px;">{{ file.title }}</td>
@@ -194,7 +214,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     No music files found or scanned in this directory.
                                 </td>
                             </tr>
@@ -368,6 +388,10 @@
         confirmBrowseBtn.onclick = () => {
             directoryInput.value = selectedFullPath;
             bootstrap.Modal.getInstance(browseModal).hide();
+            // Automatically scan when directory is confirmed
+            if (directoryInput.value) {
+                directoryInput.closest('form').submit();
+            }
         };
 
         // Select all checkbox functionality
@@ -384,6 +408,11 @@
             const patternContainer = document.getElementById('pattern-container');
             const manualFields = document.getElementById('manual-fields');
             const mainForm = document.getElementById('main-form');
+            const scanModeInput = document.querySelector('form[action="/scan"] input[name="mode"]');
+
+            if (scanModeInput) {
+                scanModeInput.value = e.target.value;
+            }
 
             if (e.target.value === 'tag') {
                 patternContainer.style.display = 'block';
@@ -465,6 +494,47 @@
         }
 
         // Note: apply-form already has the selected files from the preview response
+
+        // Resizable columns logic
+        const initResizers = () => {
+            const table = document.getElementById('files-table');
+            const cols = table.querySelectorAll('thead th');
+            cols.forEach(col => {
+                if (col.cellIndex === 0) return; // Skip checkbox column
+                const resizer = document.createElement('div');
+                resizer.classList.add('resizer');
+                col.appendChild(resizer);
+                
+                let startX, startWidth;
+                
+                const onMouseMove = (e) => {
+                    const width = startWidth + (e.pageX - startX);
+                    if (width > 30) {
+                        col.style.width = width + 'px';
+                        col.style.minWidth = width + 'px';
+                    }
+                };
+                
+                const onMouseUp = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    resizer.classList.remove('resizing');
+                };
+                
+                resizer.addEventListener('mousedown', (e) => {
+                    startX = e.pageX;
+                    startWidth = col.offsetWidth;
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                    resizer.classList.add('resizing');
+                    e.preventDefault();
+                });
+            });
+        };
+        
+        if (table) {
+            initResizers();
+        }
     </script>
 </body>
 </html>

@@ -43,6 +43,27 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
 
 # Default music directory for Docker environment
 DEFAULT_MUSIC_DIR = os.getenv("MUSIC_DIR", "/music")
+
+def _get_files_data():
+    files_data = []
+    for f in manager.files:
+        try:
+            rel_path = str(f.path.parent.relative_to(manager.directory))
+            if rel_path == ".":
+                rel_path = ""
+        except ValueError:
+            rel_path = ""
+            
+        files_data.append({
+            "name": f.path.name,
+            "rel_path": rel_path,
+            "artist": f.get_tag("artist"),
+            "album": f.get_tag("album"),
+            "title": f.get_tag("title"),
+            "track": f.get_tag("track")
+        })
+    return files_data
+
 manager = MusicManager(directory=None)
 
 def get_safe_path(path_str: str) -> Path:
@@ -82,38 +103,34 @@ async def csrf_middleware(request: Request, call_next):
              
     return await call_next(request)
 
+@app.post("/scan")
+async def scan_dir(
+    directory: str = Form(""), 
+    mode: str = Form("rename"),
+    username: str = Depends(get_current_username)
+):
+    if not directory or directory.strip() == "":
+        manager.directory = None
+        manager.files = []
+        return RedirectResponse(url=f"/?mode={mode}", status_code=303)
+        
+    manager.directory = get_safe_path(directory)
+    manager.scan()
+    return RedirectResponse(url=f"/?mode={mode}", status_code=303)
+
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, username: str = Depends(get_current_username)):
+async def index(request: Request, mode: str = "rename", username: str = Depends(get_current_username)):
     # No automatic scan on load
     
-    files_data = []
-    for f in manager.files:
-        files_data.append({
-            "name": f.path.name,
-            "artist": f.get_tag("artist"),
-            "album": f.get_tag("album"),
-            "title": f.get_tag("title"),
-            "track": f.get_tag("track")
-        })
+    files_data = _get_files_data()
         
     return templates.TemplateResponse(request, "index.html", {
         "directory": str(manager.directory) if manager.directory else "",
         "files": files_data,
         "pending": [],
-        "mode": "rename",  # Default mode
+        "mode": mode,
         "music_root": str(DEFAULT_MUSIC_DIR)
     })
-
-@app.post("/scan")
-async def scan_dir(directory: str = Form(""), username: str = Depends(get_current_username)):
-    if not directory or directory.strip() == "":
-        manager.directory = None
-        manager.files = []
-        return RedirectResponse(url="/", status_code=303)
-        
-    manager.directory = get_safe_path(directory)
-    manager.scan()
-    return RedirectResponse(url="/", status_code=303)
 
 @app.post("/preview")
 async def preview(
@@ -140,15 +157,7 @@ async def preview(
         
     changes = manager.apply(dry_run=True)
 
-    files_data = []
-    for f in manager.files:
-        files_data.append({
-            "name": f.path.name,
-            "artist": f.get_tag("artist"),
-            "album": f.get_tag("album"),
-            "title": f.get_tag("title"),
-            "track": f.get_tag("track")
-        })
+    files_data = _get_files_data()
 
     return templates.TemplateResponse(request, "index.html", {
         "directory": str(manager.directory),
@@ -162,6 +171,7 @@ async def preview(
 
 @app.post("/apply")
 async def apply_changes(
+    request: Request,
     pattern: str = Form(""),
     mode: str = Form("rename"),
     selected_files: List[int] = Form(default=[]),
@@ -194,9 +204,21 @@ async def apply_changes(
             if track: tags["track"] = track
             if tags:
                 manager.update_tags(tags, files_to_process)
-        
+
     manager.apply(dry_run=False)
-    return RedirectResponse(url="/", status_code=303)
+    
+    # After apply, we want to stay on the same page with the same mode
+    # Rescan to reflect the changes (e.g. new file names or updated tags)
+    manager.scan()
+    files_data = _get_files_data()
+        
+    return templates.TemplateResponse(request, "index.html", {
+        "directory": str(manager.directory),
+        "files": files_data,
+        "pattern": pattern,
+        "mode": mode,
+        "music_root": str(DEFAULT_MUSIC_DIR)
+    })
 
 @app.post("/update_tags")
 async def update_tags(
@@ -234,15 +256,7 @@ async def update_tags(
     manager.update_tags(tags, files_to_process)
     changes = manager.apply(dry_run=True)
 
-    files_data = []
-    for f in manager.files:
-        files_data.append({
-            "name": f.path.name,
-            "artist": f.get_tag("artist"),
-            "album": f.get_tag("album"),
-            "title": f.get_tag("title"),
-            "track": f.get_tag("track")
-        })
+    files_data = _get_files_data()
 
     return templates.TemplateResponse(request, "index.html", {
         "directory": str(manager.directory),

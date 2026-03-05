@@ -12,7 +12,7 @@ class MusicFile:
             self.tags = mutagen.File(str(path))
         except Exception:
             self.tags = None
-        
+
     def get_supported_tags(self) -> List[str]:
         """Returns a list of supported tag names."""
         return ["artist", "album", "title", "track"]
@@ -21,7 +21,7 @@ class MusicFile:
         """Helper to get tag value as string."""
         if not self.tags:
             return ""
-        
+
         # Mapping common keys
         mapping = {
             "artist": ["TPE1", "artist", "\xa9ART", "Artist"],
@@ -29,21 +29,28 @@ class MusicFile:
             "title": ["TIT2", "title", "\xa9NAM", "Title"],
             "track": ["TRCK", "tracknumber", "trkn", "TrackNumber"],
         }
-        
+
         keys = mapping.get(key, [key])
         for k in keys:
-            if k in self.tags:
-                val = self.tags[k]
-                if isinstance(val, list):
-                    return str(val[0])
-                return str(val)
+            try:
+                # Some Mutagen tag mappings (notably Vorbis comments) can raise
+                # ValueError for invalid keys (e.g., non-ASCII or containing '=')
+                # during membership tests or lookup.
+                if k in self.tags:
+                    val = self.tags[k]
+                    if isinstance(val, list):
+                        return str(val[0])
+                    return str(val)
+            except (ValueError, KeyError, Exception):
+                # Be defensive: a single weird key or file shouldn't 500 the whole scan.
+                continue
         return ""
 
     def set_tag(self, key: str, value: str):
         """Helper to set tag value."""
         if not self.tags:
             return
-        
+
         # Album art is handled by set_album_art
         if key == "album_art":
             self.set_album_art(value)
@@ -56,9 +63,9 @@ class MusicFile:
             "title": ["TIT2", "title", "\xa9NAM", "Title"],
             "track": ["TRCK", "tracknumber", "trkn", "TrackNumber"],
         }
-        
+
         keys = mapping.get(key, [key])
-        
+
         # Special handling for ID3 (mp3)
         import mutagen.id3
         if isinstance(self.tags, (mutagen.id3.ID3, mutagen.mp3.MP3)):
@@ -66,7 +73,7 @@ class MusicFile:
             tags_obj = self.tags if isinstance(self.tags, mutagen.id3.ID3) else self.tags.tags
             if tags_obj is None:
                 # If there are no tags, we might need to create them
-                if hasattr(self.tags, 'add_tags'):
+                if hasattr(self.tags, "add_tags"):
                     self.tags.add_tags()
                     tags_obj = self.tags.tags
                 else:
@@ -77,15 +84,25 @@ class MusicFile:
                     frame_class = getattr(mutagen.id3, k)
                     tags_obj.setall(k, [frame_class(encoding=3, text=[value])])
                     return
-        
+
         # For other formats (FLAC, M4A) or if above didn't return
         for k in keys:
-            if k in self.tags:
-                self.tags[k] = value
+            try:
+                if k in self.tags:
+                    self.tags[k] = value
+                    return
+            except (ValueError, KeyError, Exception):
+                continue
+
+        # If not found, add the first supported key for this format (guard against invalid keys)
+        try:
+            self.tags[keys[0]] = value
+        except (ValueError, KeyError, Exception):
+            # Common Vorbis convention is lowercase keys
+            try:
+                self.tags[str(keys[0]).lower()] = value
+            except Exception:
                 return
-        
-        # If not found, add the first supported key for this format
-        self.tags[keys[0]] = value
 
     def set_album_art(self, image_data: bytes):
         """Set album art for the file."""
@@ -106,12 +123,12 @@ class MusicFile:
         if isinstance(self.tags, (mutagen.id3.ID3, mutagen.mp3.MP3)):
             tags_obj = self.tags if isinstance(self.tags, mutagen.id3.ID3) else self.tags.tags
             if tags_obj is None:
-                if hasattr(self.tags, 'add_tags'):
+                if hasattr(self.tags, "add_tags"):
                     self.tags.add_tags()
                     tags_obj = self.tags.tags
                 else:
                     return
-            
+
             # Remove old APIC frames
             tags_obj.delall("APIC")
             tags_obj.add(
@@ -120,7 +137,7 @@ class MusicFile:
                     mime=mime,
                     type=3,  # cover front
                     desc="Front Cover",
-                    data=image_data
+                    data=image_data,
                 )
             )
 
@@ -131,7 +148,7 @@ class MusicFile:
             picture.type = 3
             picture.mime = mime
             picture.desc = "Front Cover"
-            
+
             self.tags.clear_pictures()
             self.tags.add_picture(picture)
 
@@ -140,13 +157,19 @@ class MusicFile:
             cover_format = mutagen.mp4.AtomDataType.JPEG
             if mime == "image/png":
                 cover_format = mutagen.mp4.AtomDataType.PNG
-            
-            self.tags["covr"] = [mutagen.mp4.MP4Cover(image_data, imageformat=cover_format)]
+
+            try:
+                self.tags["covr"] = [mutagen.mp4.MP4Cover(image_data, imageformat=cover_format)]
+            except Exception:
+                pass
 
     def save_tags(self):
         """Save changes to the file."""
         if self.tags:
-            self.tags.save()
+            try:
+                self.tags.save()
+            except Exception:
+                pass
 
     def __repr__(self):
         return f"MusicFile({self.path})"
@@ -259,7 +282,7 @@ class MusicManager:
         
         supported_tags = ["artist", "album", "title", "track"]
         for tag in supported_tags:
-            regex_pattern = regex_pattern.replace(f'%{tag}%', f'(?P<{tag}>.+)')
+            regex_pattern = regex_pattern.replace(f'%{tag}%', f'(?P<{tag}>.+?)')
         
         # Ensure it matches the whole string or at least the relevant part from the end
         # We'll match against the relative path from the scanned directory
