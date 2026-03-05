@@ -46,6 +46,7 @@ DEFAULT_MUSIC_DIR = os.getenv("MUSIC_DIR", "/music")
 
 def _get_files_data():
     files_data = []
+    root = Path(DEFAULT_MUSIC_DIR).resolve()
     for f in manager.files:
         try:
             rel_path = str(f.path.parent.relative_to(manager.directory))
@@ -53,10 +54,18 @@ def _get_files_data():
                 rel_path = ""
         except ValueError:
             rel_path = ""
-            
+
+        try:
+            root_rel_path = str(f.path.parent.relative_to(root))
+            if root_rel_path == ".":
+                root_rel_path = ""
+        except ValueError:
+            root_rel_path = str(f.path.parent)
+
         files_data.append({
             "name": f.path.name,
             "rel_path": rel_path,
+            "root_rel_path": root_rel_path,
             "artist": f.get_tag("artist"),
             "album": f.get_tag("album"),
             "title": f.get_tag("title"),
@@ -156,6 +165,19 @@ async def preview(
         manager.tag_from_path(pattern, files_to_process)
         
     changes = manager.apply(dry_run=True)
+    
+    # Enrich changes with root_rel_path
+    root = Path(DEFAULT_MUSIC_DIR).resolve()
+    for change in changes:
+        path = change.get('old_path', change.get('path'))
+        try:
+            path_obj = Path(path)
+            root_rel_path = str(path_obj.parent.relative_to(root))
+            if root_rel_path == ".": root_rel_path = ""
+        except ValueError:
+            root_rel_path = str(Path(path).parent)
+        
+        change['root_rel_path'] = root_rel_path
 
     files_data = _get_files_data()
 
