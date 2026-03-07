@@ -19,13 +19,17 @@ document.querySelectorAll('.file-select').forEach(checkbox => {
 // Update manual mode fields based on selected files and enable/disable preview button
 function updateUIFromSelection() {
     const navPreviewBtn = document.getElementById('nav-preview-btn');
+    const previewBtnText = document.getElementById('preview-btn-text');
     const selectedCheckboxes = document.querySelectorAll('.file-select:checked');
+    const mode = document.getElementById('mode')?.value;
 
     if (navPreviewBtn) {
         navPreviewBtn.disabled = selectedCheckboxes.length === 0;
+        if (previewBtnText) {
+            previewBtnText.textContent = mode === 'manual' ? 'Apply' : 'Preview';
+        }
     }
 
-    const mode = document.getElementById('mode')?.value;
     if (mode !== 'manual') return;
 
     if (selectedCheckboxes.length === 0) {
@@ -44,7 +48,7 @@ function updateUIFromSelection() {
 
     // Build files data from table rows
     const filesData = [];
-    document.querySelectorAll('#files-table tbody tr').forEach((row, index) => {
+    document.querySelectorAll('#files-table tbody tr').forEach((row) => {
         const checkbox = row.querySelector('.file-select');
         if (!checkbox) return;
 
@@ -53,13 +57,13 @@ function updateUIFromSelection() {
 
         filesData.push({
             index: parseInt(checkbox.value),
-            artist: cells[3].textContent.trim(),
-            album: cells[4].textContent.trim(),
-            title: cells[5].textContent.trim(),
-            track: cells[6].textContent.trim(),
-            genre: cells[7].textContent.trim(),
-            date: cells[8].textContent.trim(),
-            comment: cells[9].textContent.trim()
+            artist: cells[2].textContent.trim(),
+            album: cells[3].textContent.trim(),
+            title: cells[4].textContent.trim(),
+            track: cells[5].textContent.trim(),
+            genre: cells[6].textContent.trim(),
+            date: cells[7].textContent.trim(),
+            comment: cells[8].textContent.trim()
         });
     });
 
