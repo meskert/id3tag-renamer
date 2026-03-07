@@ -1,0 +1,60 @@
+<!-- Controls Bar -->
+{% if directory %}
+<div class="controls-bar">
+    {% if files %}
+    <form action="{% if mode =="manual" %}/update_tags{% else %}/preview{% endif %}" method="post" id="main-form" enctype="multipart/form-data">
+        <input type="hidden" id="mode" name="mode" value="{{ mode }}">
+
+        <!-- Pattern Mode Fields -->
+        <div id="pattern-container" {% if mode =="manual" %}style="display: none;"{% endif %}>
+            <input type="text" class="form-control form-control-sm" id="pattern" name="pattern" value="{{ pattern or '{artist} - {title}' }}" placeholder="Pattern / Mask">
+            <small class="text-muted" id="pattern-help" style="font-size: 0.75rem;">
+                {% if mode == 'tag' %}Use %tag% format{% else %}Use {tag} format{% endif %}
+            </small>
+        </div>
+
+        <!-- Manual Tag Update Fields -->
+        <div id="manual-fields" {% if mode != 'manual' %}style="display: none;"{% endif %}>
+            <div class="row g-2">
+                <div class="col-md-2">
+                    <label class="small text-muted mb-1">Artist</label>
+                    <input type="text" class="form-control form-control-sm" id="artist" name="artist" placeholder="Artist" value="{{ artist or '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="small text-muted mb-1">Album</label>
+                    <input type="text" class="form-control form-control-sm" id="album" name="album" placeholder="Album" value="{{ album or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="small text-muted mb-1">Title</label>
+                    <input type="text" class="form-control form-control-sm" id="title" name="title" placeholder="Title" value="{{ title or '' }}">
+                </div>
+                <div class="col-md-1">
+                    <label class="small text-muted mb-1">Track</label>
+                    <input type="text" class="form-control form-control-sm" id="track" name="track" placeholder="#" value="{{ track or '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="small text-muted mb-1">Genre</label>
+                    <input type="text" class="form-control form-control-sm" id="genre" name="genre" placeholder="Genre" value="{{ genre or '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="small text-muted mb-1">Date</label>
+                    <input type="text" class="form-control form-control-sm" id="date" name="date" placeholder="Date" value="{{ date or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="small text-muted mb-1">Comment</label>
+                    <input type="text" class="form-control form-control-sm" id="comment" name="comment" placeholder="Comment" value="{{ comment or '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="small text-muted mb-1">Album Art</label>
+                    <input type="file" class="form-control form-control-sm" id="album_art" name="album_art" accept="image/jpeg,image/png">
+                </div>
+            </div>
+        </div>
+    </form>
+    {% else %}
+    <div class="text-center py-2">
+        <span class="text-muted small">No music files loaded. Click "Scan" in the navbar to search for files in this directory.</span>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

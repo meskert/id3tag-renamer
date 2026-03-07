@@ -1,0 +1,75 @@
+<!-- Preview Changes Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">Preview Changes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-album-art-preview" class="mb-3 text-center" style="display: none;">
+                    <img id="modal-preview-img" src="#" alt="Album Art" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
+                </div>
+                <div id="preview-content-area">
+                    {% if changes %}
+                    <div class="preview-list-container" style="max-height: 400px; overflow-y: auto;">
+                        <div class="list-group list-group-flush">
+                            {% for change in changes %}
+                            <div class="list-group-item px-0 py-2 border-0">
+                                <small>
+                                    {% if change.type == 'rename' %}
+                                        <div class="text-primary fw-bold mb-1">RENAME</div>
+                                        <div class="text-muted small mb-1">{{ change.root_rel_path }}</div>
+                                        <div class="text-muted text-truncate mb-1" title="{{ change.old_path.name }}">{{ change.old_path.name }}</div>
+                                        <div class="fw-bold text-truncate" title="{{ change.new_path.name }}">→ {{ change.new_path.name }}</div>
+                                    {% elif change.type == 'tag' %}
+                                        <div class="text-info fw-bold mb-1">TAGS</div>
+                                        <div class="text-muted small mb-1">{{ change.root_rel_path }}</div>
+                                        <div class="text-muted text-truncate mb-2" title="{{ change.path.name }}">{{ change.path.name }}</div>
+                                        {% for tag, val in change.changes.items() %}
+                                            <div class="ps-2 border-start border-2 border-info mb-1">
+                                                <span class="text-muted text-uppercase" style="font-size: 0.7rem;">{{ tag }}:</span><br>
+                                                <span class="fw-bold">{{ val }}</span>
+                                            </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                        <p class="text-muted text-center">No changes to preview.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                {% if changes %}
+                <form action="/apply" method="post" id="apply-form">
+                    <input type="hidden" name="pattern" value="{{ pattern or '' }}">
+                    <input type="hidden" name="mode" value="{{ mode }}">
+                    {% if selected_indices %}
+                        {% for idx in selected_indices %}
+                        <input type="hidden" name="selected_files" value="{{ idx }}">
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Persistent tag values for manual mode -->
+                    {% if mode == 'manual' %}
+                        <input type="hidden" name="artist" value="{{ artist or '' }}">
+                        <input type="hidden" name="album" value="{{ album or '' }}">
+                        <input type="hidden" name="title" value="{{ title or '' }}">
+                        <input type="hidden" name="track" value="{{ track or '' }}">
+                        <input type="hidden" name="genre" value="{{ genre or '' }}">
+                        <input type="hidden" name="date" value="{{ date or '' }}">
+                        <input type="hidden" name="comment" value="{{ comment or '' }}">
+                    {% endif %}
+
+                    <button type="submit" class="btn btn-danger">Apply Changes</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
