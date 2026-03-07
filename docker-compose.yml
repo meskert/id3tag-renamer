@@ -10,6 +10,7 @@ services:
       - MUSIC_DIR=/music
       - PORT=8000
       - HOST=0.0.0.0
+      - WEB_SESSION_MAX_AGE=1800
       # Recommend using .env file for credentials in production
       - WEB_USERNAME=${WEB_USERNAME}
       - WEB_PASSWORD=${WEB_PASSWORD}

@@ -12,6 +12,7 @@ dependencies = [
     "uvicorn>=0.23.0",
     "jinja2>=3.1.0",
     "python-multipart>=0.0.6",
+    "itsdangerous>=2.0.0",
 ]
 
 [project.scripts]
@@ -32,4 +33,10 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-id3tag_renamer = ["templates/*"]
+id3tag_renamer = [
+    "templates/*.html",
+    "templates/components/*.html",
+    "templates/components/modals/*.html",
+    "static/css/*.css",
+    "static/js/*.js",
+]
