@@ -1,5 +1,6 @@
 services:
   id3tag-renamer:
+    image: id3tag-renamer:latest
     container_name: id3tag-renamer
     build: .
     ports:

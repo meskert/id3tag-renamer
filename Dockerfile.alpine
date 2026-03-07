@@ -1,0 +1,45 @@
+FROM python:3.12-alpine AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    MUSIC_DIR=/music
+
+WORKDIR /app
+
+# Build-time dependencies for compiling any native extensions
+RUN apk add --no-cache \
+    build-base
+
+# Copy only what is needed to build the package
+COPY pyproject.toml README.md ./
+COPY src/ ./src
+
+RUN pip wheel --no-cache-dir --wheel-dir /wheels .
+
+
+FROM python:3.12-alpine AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    MUSIC_DIR=/music
+
+WORKDIR /app
+
+# Runtime dependencies: ffmpeg and chromaprint
+RUN apk add --no-cache \
+    ffmpeg \
+    chromaprint
+
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+
+RUN adduser -D appuser \
+    && mkdir -p "${MUSIC_DIR}" \
+    && chown -R appuser:appuser "${MUSIC_DIR}"
+
+USER appuser
+
+EXPOSE 8000
+
+CMD ["id3tag-renamer"]
+
