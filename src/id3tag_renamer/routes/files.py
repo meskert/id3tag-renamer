@@ -41,11 +41,40 @@ async def scan_dir(
 
 @router.get("/", response_class=HTMLResponse)
 async def index(
-    request: Request, mode: str = "rename", username: str = Depends(require_user)
+    request: Request,
+    mode: str = "rename",
+    selected: str = None,
+    preview: bool = False,
+    username: str = Depends(require_user),
 ):
     """Display main page with file list."""
     manager = get_manager()
     files_data = get_files_data(manager)
+
+    changes = []
+    selected_indices = []
+    if selected:
+        try:
+            selected_indices = [int(i) for i in selected.split(",")]
+        except ValueError:
+            pass
+
+    if preview and selected_indices:
+        changes = manager.apply(dry_run=True)
+
+        # Enrich changes with root_rel_path
+        root = Path(config.DEFAULT_MUSIC_DIR).resolve()
+        for change in changes:
+            path_val = change.get("old_path", change.get("path"))
+            try:
+                path_obj = Path(str(path_val))
+                root_rel_path = str(path_obj.parent.relative_to(root))
+                if root_rel_path == ".":
+                    root_rel_path = ""
+            except ValueError:
+                root_rel_path = str(Path(str(path_val)).parent)
+
+            change["root_rel_path"] = root_rel_path
 
     return templates.TemplateResponse(
         request,
@@ -53,8 +82,9 @@ async def index(
         {
             "directory": str(manager.directory) if manager.directory else "",
             "files": files_data,
-            "pending": [],
+            "changes": changes,
             "mode": mode,
+            "selected_indices": selected_indices,
             "music_root": str(config.DEFAULT_MUSIC_DIR),
         },
     )

@@ -1,0 +1,114 @@
+<!-- Online Metadata Lookup Modal -->
+<div class="modal fade" id="lookupModal" tabindex="-1" aria-labelledby="lookupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="lookupModalLabel">Online Metadata Lookup</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <!-- Loading State -->
+                <div id="lookup-loading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Searching online databases...</p>
+                    <small class="text-muted">Using MusicBrainz and AcoustID</small>
+                </div>
+
+                <!-- Error State -->
+                <div id="lookup-error" class="alert alert-danger d-none" role="alert">
+                    <strong>Error:</strong> <span id="lookup-error-message"></span>
+                </div>
+
+                <!-- Warning State -->
+                <div id="lookup-warning" class="alert alert-warning d-none" role="alert">
+                    <strong>Notice:</strong> <span id="lookup-warning-message"></span>
+                </div>
+
+                <!-- Results -->
+                <div id="lookup-results" class="d-none">
+                    <div class="alert alert-info d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Instructions:</strong> Select the best match for each file below. Click "Apply Selected" to update the tags.
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="lookup-select-all-best">Select All Best Matches</button>
+                    </div>
+
+                    <!-- Results will be dynamically inserted here -->
+                    <div id="lookup-results-container"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="form-check me-2">
+                    <input class="form-check-input" type="checkbox" id="lookup-direct-apply">
+                    <label class="form-check-label" for="lookup-direct-apply">
+                        Apply directly (skip preview)
+                    </label>
+                </div>
+                <div class="form-check me-auto">
+                    <input class="form-check-input" type="checkbox" id="lookup-use-fingerprint" checked>
+                    <label class="form-check-label" for="lookup-use-fingerprint">
+                        Use fingerprinting
+                    </label>
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="lookup-apply-btn" disabled>Apply Selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template for individual file result -->
+<template id="lookup-file-result-template">
+    <div class="card mb-3 lookup-file-result">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <strong class="lookup-filename"></strong>
+                <span class="badge bg-secondary ms-2 lookup-match-count"></span>
+            </div>
+            <small class="text-muted">
+                Current: <span class="lookup-current-tags"></span>
+            </small>
+        </div>
+        <div class="card-body">
+            <!-- No matches message -->
+            <div class="lookup-no-matches alert alert-warning d-none">
+                No matches found. Try different search terms or check the file manually.
+            </div>
+
+            <!-- Matches list -->
+            <div class="list-group lookup-matches-list">
+                <!-- Match items will be inserted here -->
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Template for individual match item -->
+<template id="lookup-match-template">
+    <label class="list-group-item list-group-item-action lookup-match-item">
+        <div class="d-flex align-items-start">
+            <input class="form-check-input me-3 mt-1 lookup-match-radio" type="radio" name="lookup-match-">
+            <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <strong class="lookup-match-title"></strong>
+                        <span class="text-muted"> by </span>
+                        <span class="lookup-match-artist"></span>
+                    </div>
+                    <span class="badge bg-success lookup-match-score"></span>
+                </div>
+                <div class="small text-muted lookup-match-details">
+                    <span class="lookup-match-album"></span>
+                    <span class="lookup-match-separator"> • </span>
+                    <span class="lookup-match-date"></span>
+                    <span class="lookup-match-track-separator"> • </span>
+                    <span class="lookup-match-track"></span>
+                    <span class="lookup-match-genre-separator"> • </span>
+                    <span class="lookup-match-genre"></span>
+                </div>
+            </div>
+        </div>
+    </label>
+</template>
