@@ -8,6 +8,7 @@ A web-based music file organizer for managing ID3 tags and renaming files based 
 - **Rename from Tags**: Generate filenames from ID3 tag patterns (e.g., `{artist} - {title}.mp3`)
 - **Tag from Filename**: Extract metadata from filename patterns (e.g., `%artist% - %title%`)
 - **Manual Tag Update**: Directly edit tags for single or multiple files
+- **Online Metadata Lookup**: Automatically identify songs and fetch tags using AcoustID audio fingerprinting and MusicBrainz
 
 ### 🏷️ Comprehensive Tag Support
 - Artist, Album, Title, Track Number
@@ -76,6 +77,7 @@ docker-compose up -d
 | `MUSIC_DIR` | No | `/music` | Path to music directory inside container |
 | `WEB_USERNAME` | No | None | HTTP Basic Auth username (optional) |
 | `WEB_PASSWORD` | No | None | HTTP Basic Auth password (optional) |
+| `ACOUSTID_API_KEY` | No | None | [AcoustID API Key](https://acoustid.org/new-application) for fingerprinting (optional) |
 | `HOST` | No | `0.0.0.0` | Server bind address |
 | `PORT` | No | `8000` | Server port |
 
@@ -162,6 +164,25 @@ Edit tags directly with full control.
 7. Review changes
 8. Click "Apply Changes"
 
+### Online Metadata Lookup
+
+Automatically identify your music files using AcoustID audio fingerprinting and MusicBrainz metadata.
+
+**Configuration**:
+- Obtain an API key from [AcoustID](https://acoustid.org/new-application)
+- Set the `ACOUSTID_API_KEY` environment variable
+
+**Steps**:
+1. Select the files you want to identify (checkboxes)
+2. Click the "Lookup" button in the navbar
+3. The app will generate audio fingerprints and search for matches
+4. Review the results:
+   - **Match Score**: Indication of confidence in the match
+   - **Metadata**: Title, Artist, Album, etc., from MusicBrainz
+5. Select the best match for each file
+6. Click "Apply Selected Metadata" to update the tag fields in the table
+7. Review and finalize changes using the standard "Preview" and "Apply Changes" workflow
+
 ### Keyboard Shortcuts & Tips
 
 - **Select All**: Use the checkbox in the table header
@@ -203,16 +224,14 @@ Edit tags directly with full control.
 git clone https://github.com/yourusername/id3tag-renamer.git
 cd id3tag-renamer
 
+# Install system dependencies (required for fingerprinting)
+# Linux (Debian/Ubuntu)
+sudo apt-get install libchromaprint-tools ffmpeg
+# macOS
+brew install chromaprint ffmpeg
+
 # Install dependencies
 pip install -e .
-
-# Set environment variables
-export MUSIC_DIR=/path/to/music
-export WEB_USERNAME=admin
-export WEB_PASSWORD=password
-
-# Run the development server
-python -m id3tag_renamer.web
 ```
 
 ### Building the Docker Image
@@ -267,10 +286,13 @@ id3tag-renamer/
 ├── README.md
 ├── src/
 │   └── id3tag_renamer/
-│       ├── __init__.py       # Core tag manipulation logic
-│       ├── web.py            # FastAPI web application
-│       └── templates/
-│           └── index.html    # Single-page web interface
+│       ├── config.py         # Configuration management
+│       ├── web.py            # FastAPI web application initialization
+│       ├── middleware/       # Custom middleware (CSRF, etc.)
+│       ├── routes/           # API and web route modules
+│       ├── services/         # Business logic (metadata, file ops)
+│       ├── static/           # Static assets (JS, CSS)
+│       └── templates/        # Jinja2 templates and components
 ```
 
 ## Contributing
