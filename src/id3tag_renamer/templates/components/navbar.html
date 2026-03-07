@@ -10,6 +10,9 @@
                 <option value="tag" {% if mode =="tag" %}selected{% endif %}>Tag from filename</option>
                 <option value="manual" {% if mode =="manual" %}selected{% endif %}>Manual tag update</option>
             </select>
+            <button type="button" class="btn btn-info btn-sm" id="lookup-btn" title="Lookup metadata online">
+                <i class="bi bi-search"></i> Lookup Online
+            </button>
             <button type="button" class="btn btn-success btn-sm" id="nav-preview-btn" disabled>Preview</button>
             <form action="/scan" method="post" class="d-flex align-items-center gap-2">
                 <input type="hidden" name="mode" id="mode-input" value="{{ mode }}">

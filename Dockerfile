@@ -12,6 +12,8 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    libchromaprint-tools \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy application files

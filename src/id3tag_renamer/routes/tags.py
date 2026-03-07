@@ -35,6 +35,7 @@ async def update_tags(
     genre: Optional[str] = Form(None),
     date: Optional[str] = Form(None),
     comment: Optional[str] = Form(None),
+    new_filename: Optional[str] = Form(None),
     album_art: Optional[UploadFile] = File(None),
     selected_files: List[int] = Form(default=[]),
     username: str = Depends(require_user),
@@ -75,6 +76,21 @@ async def update_tags(
             tags["album_art"] = content
 
     manager.update_tags(tags, files_to_process)
+
+    # Handle filename rename if provided (for single file edits)
+    if new_filename and len(files_to_process) == 1:
+        music_file = files_to_process[0]
+        current_stem = music_file.path.stem
+
+        # Only add rename change if filename actually changed
+        if new_filename != current_stem:
+            new_path = music_file.path.parent / (new_filename + music_file.path.suffix)
+            manager._pending_changes.append({
+                "type": "rename",
+                "old_path": music_file.path,
+                "new_path": new_path
+            })
+
     changes = manager.apply(dry_run=True)
 
     files_data = get_files_data(manager)

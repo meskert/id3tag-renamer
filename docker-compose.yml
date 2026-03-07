@@ -14,4 +14,5 @@ services:
       # Recommend using .env file for credentials in production
       - WEB_USERNAME=${WEB_USERNAME}
       - WEB_PASSWORD=${WEB_PASSWORD}
+      - ACOUSTID_API_KEY=${ACOUSTID_API_KEY}
     restart: unless-stopped

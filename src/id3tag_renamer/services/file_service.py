@@ -35,6 +35,7 @@ def get_files_data(manager) -> List[Dict[str, Any]]:
         data = {
             "index": i,
             "name": f.path.name,
+            "name_stem": f.path.stem,
             "rel_path": rel_path,
             "root_rel_path": root_rel_path,
         }

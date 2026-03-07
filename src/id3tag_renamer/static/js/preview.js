@@ -19,8 +19,10 @@ if (editModal) {
         const date = button.getAttribute('data-date');
         const comment = button.getAttribute('data-comment');
         const filename = button.getAttribute('data-filename');
+        const filenameStem = button.getAttribute('data-filename-stem');
 
         document.getElementById('edit-file-index').value = index;
+        document.getElementById('edit-filename').value = filenameStem;
         document.getElementById('edit-artist').value = artist;
         document.getElementById('edit-album').value = album;
         document.getElementById('edit-title').value = title;
