@@ -15,8 +15,9 @@ from .routes import register_routes
 # Create FastAPI app
 app = FastAPI(title="ID3Tag-Renamer")
 
-# Mount static files
-app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
+# Mount static files if directory exists
+if config.STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
 
 # Initialize global state
 manager = MusicManager(directory=None)
@@ -25,7 +26,7 @@ templates = Jinja2Templates(directory=config.TEMPLATE_DIR)
 # Add middleware
 app.add_middleware(
     SessionMiddleware,
-    secret_key=config.WEB_SESSION_SECRET.encode(),
+    secret_key=config.WEB_SESSION_SECRET,
     max_age=config.SESSION_MAX_AGE,
 )
 app.middleware("http")(csrf_middleware)
