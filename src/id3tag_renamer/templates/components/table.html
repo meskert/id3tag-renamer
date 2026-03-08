@@ -1,63 +1,59 @@
 <!-- Files Table -->
-<div class="main-content">
-    <div class="left-panel">
-        <div class="table-responsive">
-            <table class="table table-hover table-sm mb-0" id="files-table">
-                <thead class="table-light sticky-top">
-                    <tr>
-                        <th style="width: 70px;"><input type="checkbox" id="select-all"></th>
-                        <th class="sortable" data-column="0">Path</th>
-                        <th class="sortable" data-column="1">Filename</th>
-                        <th class="sortable" data-column="2">Artist</th>
-                        <th class="sortable" data-column="3">Album</th>
-                        <th class="sortable" data-column="4">Title</th>
-                        <th class="sortable" data-column="5" style="width: 60px;">Tr#</th>
-                        <th class="sortable" data-column="6">Genre</th>
-                        <th class="sortable" data-column="7">Date</th>
-                        <th class="sortable" data-column="8">Comment</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for file in files %}
-                    <tr>
-                        <td class="d-flex gap-1 align-items-center">
-                            <input type="checkbox" class="file-select" value="{{ file.index }}" {% if file.index in selected_indices %}checked{% endif %}>
-                            <button type="button" class="btn btn-outline-primary btn-xs p-0 px-1 single-edit-btn"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#editModal"
-                                    data-index="{{ file.index }}"
-                                    data-artist="{{ file.artist }}"
-                                    data-album="{{ file.album }}"
-                                    data-title="{{ file.title }}"
-                                    data-track="{{ file.track }}"
-                                    data-genre="{{ file.genre }}"
-                                    data-date="{{ file.date }}"
-                                    data-comment="{{ file.comment }}"
-                                    data-filename="{{ file.name }}"
-                                    data-filename-stem="{{ file.name_stem }}"
-                                    title="Edit single file">
-                                <small>✏️</small>
-                            </button>
-                        </td>
-                        <td class="text-truncate">{{ file.root_rel_path }}</td>
-                        <td class="text-truncate">{{ file.name }}</td>
-                        <td class="text-truncate">{{ file.artist }}</td>
-                        <td class="text-truncate">{{ file.album }}</td>
-                        <td class="text-truncate">{{ file.title }}</td>
-                        <td>{{ file.track }}</td>
-                        <td class="text-truncate">{{ file.genre }}</td>
-                        <td class="text-truncate">{{ file.date }}</td>
-                        <td class="text-truncate">{{ file.comment }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="10" class="text-center py-5 text-muted">
-                            No music files found or scanned in this directory.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+<div class="table-responsive">
+    <table class="table table-hover table-sm mb-0" id="files-table">
+        <thead class="table-light sticky-top">
+            <tr>
+                <th style="width: 70px;"><input type="checkbox" id="select-all"></th>
+                <th class="sortable" data-column="0">Path</th>
+                <th class="sortable" data-column="1">Filename</th>
+                <th class="sortable" data-column="2">Artist</th>
+                <th class="sortable" data-column="3">Album</th>
+                <th class="sortable" data-column="4">Title</th>
+                <th class="sortable" data-column="5" style="width: 60px;">Tr#</th>
+                <th class="sortable" data-column="6">Genre</th>
+                <th class="sortable" data-column="7">Date</th>
+                <th class="sortable" data-column="8">Comment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td class="d-flex gap-1 align-items-center">
+                    <input type="checkbox" class="file-select" value="{{ file.index }}" {% if file.index in selected_indices %}checked{% endif %}>
+                    <button type="button" class="btn btn-outline-primary btn-xs p-0 px-1 single-edit-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editModal"
+                            data-index="{{ file.index }}"
+                            data-artist="{{ file.artist }}"
+                            data-album="{{ file.album }}"
+                            data-title="{{ file.title }}"
+                            data-track="{{ file.track }}"
+                            data-genre="{{ file.genre }}"
+                            data-date="{{ file.date }}"
+                            data-comment="{{ file.comment }}"
+                            data-filename="{{ file.name }}"
+                            data-filename-stem="{{ file.name_stem }}"
+                            title="Edit single file">
+                        <small>✏️</small>
+                    </button>
+                </td>
+                <td class="text-truncate">{{ file.root_rel_path }}</td>
+                <td class="text-truncate">{{ file.name }}</td>
+                <td class="text-truncate">{{ file.artist }}</td>
+                <td class="text-truncate">{{ file.album }}</td>
+                <td class="text-truncate">{{ file.title }}</td>
+                <td>{{ file.track }}</td>
+                <td class="text-truncate">{{ file.genre }}</td>
+                <td class="text-truncate">{{ file.date }}</td>
+                <td class="text-truncate">{{ file.comment }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="10" class="text-center py-5 text-muted">
+                    No music files found or scanned in this directory.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>

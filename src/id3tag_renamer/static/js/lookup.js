@@ -15,7 +15,6 @@ const lookupWarningMessage = document.getElementById('lookup-warning-message');
 const lookupResultsDiv = document.getElementById('lookup-results');
 const lookupResultsContainer = document.getElementById('lookup-results-container');
 const lookupUseFingerprint = document.getElementById('lookup-use-fingerprint');
-const lookupDirectApply = document.getElementById('lookup-direct-apply');
 const lookupSelectAllBest = document.getElementById('lookup-select-all-best');
 
 if (lookupBtn) {
@@ -223,81 +222,41 @@ if (lookupApplyBtn) {
             return;
         }
 
-        const directApply = lookupDirectApply && lookupDirectApply.checked;
+        lookupApplyBtn.disabled = true;
+        lookupApplyBtn.textContent = 'Applying…';
 
-        if (directApply) {
-            // Apply all selected metadata via the new batch API
-            try {
-                const updates = Object.entries(lookupSelections).map(([index, match]) => ({
-                    index: parseInt(index),
-                    tags: {
-                        artist: match.artist,
-                        album: match.album,
-                        title: match.title,
-                        track: match.track,
-                        genre: match.genre,
-                        date: match.date
-                    }
-                }));
-
-                const response = await fetch('/api/apply_metadata', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        updates: updates,
-                        apply_directly: false // We still want to show preview in the main page
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            const updates = Object.entries(lookupSelections).map(([index, match]) => ({
+                index: parseInt(index),
+                tags: {
+                    artist: match.artist,
+                    album: match.album,
+                    title: match.title,
+                    track: match.track,
+                    genre: match.genre,
+                    date: match.date
                 }
+            }));
 
-                // Close lookup modal
-                const modal = bootstrap.Modal.getInstance(lookupModal);
-                modal.hide();
+            const response = await fetch('/api/apply_metadata', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates, apply_directly: true })
+            });
 
-                // Refresh the page to show changes in the main preview modal
-                // We'll pass the mode and selected files in the URL to restore state
-                const selectedFiles = updates.map(u => u.index).join(',');
-                window.location.href = `/?mode=manual&selected=${selectedFiles}&preview=true`;
-
-            } catch (error) {
-                console.error('Apply error:', error);
-                alert('Failed to apply metadata: ' + error.message);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return;
-        }
 
-        // Switch to manual mode if not already (legacy non-direct apply)
-        const modeNav = document.getElementById('mode-nav');
-        const modeInput = document.getElementById('mode');
-        if (modeNav && modeNav.value !== 'manual') {
-            modeNav.value = 'manual';
-            modeNav.dispatchEvent(new Event('change'));
-        }
+            const modal = bootstrap.Modal.getInstance(lookupModal);
+            modal.hide();
+            window.location.href = `/?mode=manual`;
 
-        // Close lookup modal
-        const modal = bootstrap.Modal.getInstance(lookupModal);
-        modal.hide();
-
-        // Populate the manual tag fields with first selection (as a fallback)
-        const firstFileIndex = Object.keys(lookupSelections)[0];
-        const firstMatch = lookupSelections[firstFileIndex];
-
-        if (firstMatch.artist) document.getElementById('artist').value = firstMatch.artist;
-        if (firstMatch.album) document.getElementById('album').value = firstMatch.album;
-        if (firstMatch.title) document.getElementById('title').value = firstMatch.title;
-        if (firstMatch.track) document.getElementById('track').value = firstMatch.track;
-        if (firstMatch.genre) document.getElementById('genre').value = firstMatch.genre;
-        if (firstMatch.date) document.getElementById('date').value = firstMatch.date;
-
-        // Trigger preview
-        const navPreviewBtn = document.getElementById('nav-preview-btn');
-        if (navPreviewBtn && !navPreviewBtn.disabled) {
-            navPreviewBtn.click();
+        } catch (error) {
+            console.error('Apply error:', error);
+            alert('Failed to apply metadata: ' + error.message);
+            lookupApplyBtn.disabled = false;
+            lookupApplyBtn.textContent = 'Apply Selected';
         }
     });
 }

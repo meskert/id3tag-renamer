@@ -174,6 +174,7 @@ async def apply_changes(
     genre: str = Form(None),
     date: str = Form(None),
     comment: str = Form(None),
+    clear_tags: List[str] = Form(default=[]),
     username: str = Depends(require_user),
 ):
     """Apply changes to files."""
@@ -212,8 +213,8 @@ async def apply_changes(
                 tags["date"] = date
             if comment:
                 tags["comment"] = comment
-            if tags:
-                manager.update_tags(tags, files_to_process)
+            if tags or clear_tags:
+                manager.update_tags(tags, files_to_process, clear_tags=clear_tags)
 
     manager.apply(dry_run=False)
 

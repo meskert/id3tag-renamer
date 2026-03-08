@@ -1,0 +1,21 @@
+<!-- Collapsible Mode Sidebar -->
+<aside class="mode-sidebar" id="mode-sidebar">
+    <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">
+        <i class="bi bi-layout-sidebar-inset"></i>
+    </button>
+
+    <button type="button" class="mode-btn {% if mode == 'rename' %}active{% endif %}" data-mode="rename" title="Rename from tags">
+        <i class="bi bi-pencil-square"></i>
+        <span class="sidebar-label">Rename from tags</span>
+    </button>
+
+    <button type="button" class="mode-btn {% if mode == 'tag' %}active{% endif %}" data-mode="tag" title="Tag from filename">
+        <i class="bi bi-tag"></i>
+        <span class="sidebar-label">Tag from filename</span>
+    </button>
+
+    <button type="button" class="mode-btn {% if mode == 'manual' %}active{% endif %}" data-mode="manual" title="Manual tag update">
+        <i class="bi bi-sliders"></i>
+        <span class="sidebar-label">Manual tag update</span>
+    </button>
+</aside>

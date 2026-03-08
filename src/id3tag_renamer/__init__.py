@@ -378,22 +378,24 @@ class MusicManager:
                         "changes": changes
                     })
 
-    def update_tags(self, tags: dict, selected_files: Optional[List[MusicFile]] = None):
+    def update_tags(self, tags: dict, selected_files: Optional[List[MusicFile]] = None, clear_tags: Optional[List[str]] = None):
         """Plan manual tag updates.
-        
+
         Args:
             tags: Dictionary of tag keys and values to set.
             selected_files: List of MusicFile objects to update.
+            clear_tags: List of tag keys to explicitly clear (set to empty string).
         """
         self._pending_changes = []
         files_to_process = selected_files if selected_files is not None else self.files
+        clear_tags = clear_tags or []
 
         for music_file in files_to_process:
             changes = {}
             for key, value in tags.items():
                 if not value and key != "album_art":
                     continue
-                
+
                 if key == "album_art":
                     # For album art, we just indicate it's being updated
                     changes[key] = "<binary data>"
@@ -401,12 +403,18 @@ class MusicManager:
                     old_value = music_file.get_tag(key)
                     if old_value != value:
                         changes[key] = value
-            
+
+            # Explicitly cleared tags — always include even if already empty
+            for key in clear_tags:
+                if key not in changes:
+                    changes[key] = ""
+
             if changes:
                 self._pending_changes.append({
                     "type": "tag",
                     "path": music_file.path,
                     "changes": changes,
+                    "clear_tags": clear_tags,
                     "raw_tags": tags # Store raw tags to use during apply (e.g. for binary data)
                 })
 
@@ -479,7 +487,8 @@ class MusicManager:
 
                         # If we have raw_tags, it's a manual update which might include binary data
                         tags_to_use = change.get("raw_tags", change.get("changes", {}))
-                        print(f"Applying tags to {change['path']}: tags_to_use = {tags_to_use}")
+                        clear_tags_for_change = change.get("clear_tags", [])
+                        print(f"Applying tags to {change['path']}: tags_to_use = {tags_to_use}, clear_tags = {clear_tags_for_change}")
                         tags_written = []
                         for tag, value in tags_to_use.items():
                             if tag == "album_art" and value == "<binary data>":
@@ -491,6 +500,13 @@ class MusicManager:
                             print(f"Setting {tag} = {repr(value)}")
                             music_file.set_tag(tag, value)
                             tags_written.append(tag)
+
+                        # Apply explicit clears (set to empty string)
+                        for tag in clear_tags_for_change:
+                            if tag not in tags_written:
+                                print(f"Clearing {tag}")
+                                music_file.set_tag(tag, "")
+                                tags_written.append(tag)
 
                         if tags_written:
                             print(f"Saving tags: {tags_written}")

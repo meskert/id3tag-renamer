@@ -1,60 +1,102 @@
-<!-- Controls Bar -->
-{% if directory %}
-<div class="controls-bar">
+<!-- Toolbar -->
+<div class="toolbar">
+
+    <!-- Row 1: path + action buttons -->
+    <div class="toolbar-row">
+        <form action="/scan" method="post" class="d-flex align-items-center gap-1 flex-shrink-0">
+            <input type="hidden" name="mode" id="mode-input" value="{{ mode }}">
+            <div class="input-group input-group-sm" style="width: 380px;">
+                <input type="text" class="form-control" id="directory" name="directory" value="{{ directory }}" placeholder="/music">
+                <button class="btn btn-outline-secondary" type="button" id="browse-btn" data-bs-toggle="modal" data-bs-target="#browseModal">Browse</button>
+                <button type="submit" class="btn btn-primary">Scan</button>
+            </div>
+        </form>
+
+        {% if files %}
+        <button type="button" class="btn btn-info btn-sm ms-2" id="lookup-btn" title="Lookup metadata online">
+            <i class="bi bi-search"></i> Lookup
+        </button>
+        <button type="button" class="btn btn-success btn-sm" id="nav-preview-btn" disabled>
+            <span id="preview-btn-text">Preview</span>
+        </button>
+        {% endif %}
+    </div>
+
     {% if files %}
-    <form action="{% if mode =="manual" %}/update_tags{% else %}/preview{% endif %}" method="post" id="main-form" enctype="multipart/form-data">
-        <input type="hidden" id="mode" name="mode" value="{{ mode }}">
+    <!-- Row 2: mode-specific fields -->
+    <div class="toolbar-row toolbar-row-fields">
+        <form action="{% if mode == 'manual' %}/update_tags{% else %}/preview{% endif %}" method="post" id="main-form" enctype="multipart/form-data" class="d-flex align-items-center gap-2 w-100">
+            <input type="hidden" id="mode" name="mode" value="{{ mode }}">
 
-        <!-- Pattern Mode Fields -->
-        <div id="pattern-container" {% if mode =="manual" %}style="display: none;"{% endif %}>
-            <input type="text" class="form-control form-control-sm" id="pattern" name="pattern" value="{{ pattern or '{artist} - {title}' }}" placeholder="Pattern / Mask">
-            <small class="text-muted" id="pattern-help" style="font-size: 0.75rem;">
-                {% if mode == 'tag' %}Use %tag% format{% else %}Use {tag} format{% endif %}
-            </small>
-        </div>
+            <!-- Pattern field (rename / tag-from-filename modes) -->
+            <div id="pattern-container" class="d-flex align-items-end gap-2 flex-grow-1{% if mode == 'manual' %} d-none{% endif %}">
+                <div class="flex-grow-1">
+                    <label class="toolbar-field-label" for="pattern">Pattern</label>
+                    <input type="text" class="form-control form-control-sm" id="pattern" name="pattern" value="{{ pattern or '{artist} - {title}' }}" placeholder="Pattern / Mask">
+                </div>
+                <small class="text-muted text-nowrap pb-1" id="pattern-help" style="font-size: 0.75rem;">
+                    {% if mode == 'tag' %}Use %tag% format{% else %}Use {tag} format{% endif %}
+                </small>
+            </div>
 
-        <!-- Manual Tag Update Fields -->
-        <div id="manual-fields" {% if mode != 'manual' %}style="display: none;"{% endif %}>
-            <div class="row g-2">
-                <div class="col-md-2">
-                    <label class="small text-muted mb-1">Artist</label>
-                    <input type="text" class="form-control form-control-sm" id="artist" name="artist" placeholder="Artist" value="{{ artist or '' }}">
+            <!-- Manual tag fields (manual mode only, with × clear buttons) -->
+            <div id="manual-fields" class="d-flex flex-wrap align-items-end gap-2 flex-grow-1{% if mode != 'manual' %} d-none{% endif %}">
+                <div>
+                    <label class="toolbar-field-label">Artist</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control manual-tag-input" id="artist" name="artist" placeholder="Artist" value="{{ artist or '' }}" style="width:110px;">
+                        <button class="btn btn-outline-secondary clear-tag-btn" type="button" data-tag="artist" title="Clear Artist">×</button>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <label class="small text-muted mb-1">Album</label>
-                    <input type="text" class="form-control form-control-sm" id="album" name="album" placeholder="Album" value="{{ album or '' }}">
+                <div>
+                    <label class="toolbar-field-label">Album</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control manual-tag-input" id="album" name="album" placeholder="Album" value="{{ album or '' }}" style="width:110px;">
+                        <button class="btn btn-outline-secondary clear-tag-btn" type="button" data-tag="album" title="Clear Album">×</button>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label class="small text-muted mb-1">Title</label>
-                    <input type="text" class="form-control form-control-sm" id="title" name="title" placeholder="Title" value="{{ title or '' }}">
+                <div>
+                    <label class="toolbar-field-label">Title</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control manual-tag-input" id="title" name="title" placeholder="Title" value="{{ title or '' }}" style="width:110px;">
+                        <button class="btn btn-outline-secondary clear-tag-btn" type="button" data-tag="title" title="Clear Title">×</button>
+                    </div>
                 </div>
-                <div class="col-md-1">
-                    <label class="small text-muted mb-1">Track</label>
-                    <input type="text" class="form-control form-control-sm" id="track" name="track" placeholder="#" value="{{ track or '' }}">
+                <div>
+                    <label class="toolbar-field-label">Tr#</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control manual-tag-input" id="track" name="track" placeholder="#" value="{{ track or '' }}" style="width:50px;">
+                        <button class="btn btn-outline-secondary clear-tag-btn" type="button" data-tag="track" title="Clear Track">×</button>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <label class="small text-muted mb-1">Genre</label>
-                    <input type="text" class="form-control form-control-sm" id="genre" name="genre" placeholder="Genre" value="{{ genre or '' }}">
+                <div>
+                    <label class="toolbar-field-label">Genre</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control manual-tag-input" id="genre" name="genre" placeholder="Genre" value="{{ genre or '' }}" style="width:80px;">
+                        <button class="btn btn-outline-secondary clear-tag-btn" type="button" data-tag="genre" title="Clear Genre">×</button>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <label class="small text-muted mb-1">Date</label>
-                    <input type="text" class="form-control form-control-sm" id="date" name="date" placeholder="Date" value="{{ date or '' }}">
+                <div>
+                    <label class="toolbar-field-label">Date</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control manual-tag-input" id="date" name="date" placeholder="Date" value="{{ date or '' }}" style="width:80px;">
+                        <button class="btn btn-outline-secondary clear-tag-btn" type="button" data-tag="date" title="Clear Date">×</button>
+                    </div>
                 </div>
-                <div class="col-md-4">
-                    <label class="small text-muted mb-1">Comment</label>
-                    <input type="text" class="form-control form-control-sm" id="comment" name="comment" placeholder="Comment" value="{{ comment or '' }}">
+                <div>
+                    <label class="toolbar-field-label">Comment</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control manual-tag-input" id="comment" name="comment" placeholder="Comment" value="{{ comment or '' }}" style="width:140px;">
+                        <button class="btn btn-outline-secondary clear-tag-btn" type="button" data-tag="comment" title="Clear Comment">×</button>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <label class="small text-muted mb-1">Album Art</label>
-                    <input type="file" class="form-control form-control-sm" id="album_art" name="album_art" accept="image/jpeg,image/png">
+                <div>
+                    <label class="toolbar-field-label">Art</label>
+                    <input type="file" class="form-control form-control-sm" id="album_art" name="album_art" accept="image/jpeg,image/png" style="width:130px;">
                 </div>
             </div>
-        </div>
-    </form>
-    {% else %}
-    <div class="text-center py-2">
-        <span class="text-muted small">No music files loaded. Click "Scan" in the navbar to search for files in this directory.</span>
+        </form>
     </div>
     {% endif %}
+
 </div>
-{% endif %}
