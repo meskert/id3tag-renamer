@@ -57,13 +57,13 @@ function updateUIFromSelection() {
 
         filesData.push({
             index: parseInt(checkbox.value),
-            artist: cells[2].textContent.trim(),
-            album: cells[3].textContent.trim(),
-            title: cells[4].textContent.trim(),
-            track: cells[5].textContent.trim(),
-            genre: cells[6].textContent.trim(),
-            date: cells[7].textContent.trim(),
-            comment: cells[8].textContent.trim()
+            artist: cells[3].textContent.trim(),
+            album: cells[4].textContent.trim(),
+            title: cells[5].textContent.trim(),
+            track: cells[6].textContent.trim(),
+            genre: cells[7].textContent.trim(),
+            date: cells[8].textContent.trim(),
+            comment: cells[9].textContent.trim()
         });
     });
 

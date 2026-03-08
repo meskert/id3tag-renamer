@@ -29,7 +29,13 @@
                                         {% for tag, val in change.changes.items() %}
                                             <div class="ps-2 border-start border-2 border-info mb-1">
                                                 <span class="text-muted text-uppercase" style="font-size: 0.7rem;">{{ tag }}:</span><br>
-                                                <span class="fw-bold">{{ val }}</span>
+                                                {% if val == "" %}
+                                                    <span class="text-danger fst-italic">(cleared)</span>
+                                                {% elif val == "<binary data>" %}
+                                                    <span class="text-success">[album art updated]</span>
+                                                {% else %}
+                                                    <span class="fw-bold">{{ val }}</span>
+                                                {% endif %}
                                             </div>
                                         {% endfor %}
                                     {% endif %}
@@ -64,6 +70,11 @@
                         <input type="hidden" name="genre" value="{{ genre or '' }}">
                         <input type="hidden" name="date" value="{{ date or '' }}">
                         <input type="hidden" name="comment" value="{{ comment or '' }}">
+                        {% if clear_tags %}
+                            {% for tag in clear_tags %}
+                            <input type="hidden" name="clear_tags" value="{{ tag }}">
+                            {% endfor %}
+                        {% endif %}
                     {% endif %}
 
                     <button type="submit" class="btn btn-danger">Apply Changes</button>

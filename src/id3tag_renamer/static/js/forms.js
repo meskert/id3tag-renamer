@@ -1,71 +1,117 @@
-// Form Handling and Mode Switching Logic
+// Form Handling, Mode Switching, Sidebar, and Clear-Tag Logic
 
-// Nav preview button functionality
+// ── Sidebar ──────────────────────────────────────────────────────────────────
+
+const sidebar = document.getElementById('mode-sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+
+// Restore collapsed state
+if (sidebar && localStorage.getItem('sidebarCollapsed') === 'true') {
+    sidebar.classList.add('collapsed');
+}
+
+if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+    });
+}
+
+// ── Mode switching via sidebar buttons ───────────────────────────────────────
+
+function applyMode(newMode) {
+    const modeInput = document.getElementById('mode');
+    const modeInputScan = document.getElementById('mode-input');
+    const helpText = document.getElementById('pattern-help');
+    const patternInput = document.getElementById('pattern');
+    const patternContainer = document.getElementById('pattern-container');
+    const manualFields = document.getElementById('manual-fields');
+    const mainForm = document.getElementById('main-form');
+
+    // Sync hidden inputs
+    if (modeInput) modeInput.value = newMode;
+    if (modeInputScan) modeInputScan.value = newMode;
+
+    // Update URL
+    window.history.replaceState(null, '', '/?mode=' + newMode);
+
+    if (newMode === 'manual') {
+        patternContainer?.classList.add('d-none');
+        manualFields?.classList.remove('d-none');
+        if (mainForm) mainForm.action = '/update_tags';
+        updateUIFromSelection();
+    } else {
+        patternContainer?.classList.remove('d-none');
+        manualFields?.classList.add('d-none');
+        if (mainForm) mainForm.action = '/preview';
+        if (newMode === 'tag') {
+            if (helpText) helpText.innerHTML = 'Use %tag% format';
+            if (patternInput && patternInput.value === '{artist} - {title}') {
+                patternInput.value = '%artist% - %title%';
+            }
+        } else {
+            if (helpText) helpText.innerHTML = 'Use {tag} format';
+            if (patternInput && patternInput.value === '%artist% - %title%') {
+                patternInput.value = '{artist} - {title}';
+            }
+        }
+    }
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const newMode = btn.dataset.mode;
+        // Update active state
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyMode(newMode);
+    });
+});
+
+// ── Preview button ────────────────────────────────────────────────────────────
+
 const navPreviewBtn = document.getElementById('nav-preview-btn');
 const mainForm = document.getElementById('main-form');
 
 if (navPreviewBtn) {
-    navPreviewBtn.addEventListener('click', function() {
+    navPreviewBtn.addEventListener('click', function () {
         if (mainForm) {
             mainForm.requestSubmit();
         }
     });
 }
 
-// Mode change logic - sync navbar mode selector with hidden input
-const modeNav = document.getElementById('mode-nav');
-const modeInput = document.getElementById('mode');
-const modeInputScan = document.getElementById('mode-input');
+// ── Clear-tag buttons ─────────────────────────────────────────────────────────
 
-if (modeNav) {
-    modeNav.addEventListener('change', function(e) {
-        const newMode = e.target.value;
+document.querySelectorAll('.clear-tag-btn').forEach(btn => {
+    const tag = btn.dataset.tag;
+    const input = document.getElementById(tag);
+    if (!input) return;
 
-        // Reset URL when mode changes
-        window.history.replaceState(null, '', '/?mode=' + newMode);
+    btn.addEventListener('click', () => {
+        input.value = '';
+        input.dataset.cleared = '1';
+        input.placeholder = '(will be cleared)';
+        input.classList.add('is-cleared');
+    });
 
-        // Update hidden inputs
-        if (modeInput) modeInput.value = newMode;
-        if (modeInputScan) modeInputScan.value = newMode;
-
-        // Update UI
-        const helpText = document.getElementById('pattern-help');
-        const patternInput = document.getElementById('pattern');
-        const patternContainer = document.getElementById('pattern-container');
-        const manualFields = document.getElementById('manual-fields');
-        const mainForm = document.getElementById('main-form');
-
-        if (newMode === 'tag') {
-            if (patternContainer) patternContainer.style.display = 'block';
-            if (manualFields) manualFields.style.display = 'none';
-            if (mainForm) mainForm.action = '/preview';
-            if (helpText) helpText.innerHTML = 'Use %tag% format';
-            if (patternInput && patternInput.value === '{artist} - {title}') {
-                patternInput.value = '%artist% - %title%';
-            }
-        } else if (newMode === 'manual') {
-            if (patternContainer) patternContainer.style.display = 'none';
-            if (manualFields) manualFields.style.display = 'block';
-            if (mainForm) mainForm.action = '/update_tags';
-            updateUIFromSelection();
-        } else {
-            if (patternContainer) patternContainer.style.display = 'block';
-            if (manualFields) manualFields.style.display = 'none';
-            if (mainForm) mainForm.action = '/preview';
-            if (helpText) helpText.innerHTML = 'Use {tag} format';
-            if (patternInput && patternInput.value === '%artist% - %title%') {
-                patternInput.value = '{artist} - {title}';
-            }
+    // If user types again, remove the cleared marker
+    input.addEventListener('input', () => {
+        if (input.value !== '') {
+            delete input.dataset.cleared;
+            input.classList.remove('is-cleared');
         }
     });
-}
+});
 
-// Add selected file indices to form submission
+// ── Form submission: attach selected files + clear_tags ──────────────────────
+
 const mainFormElement = document.getElementById('main-form');
 if (mainFormElement) {
-    mainFormElement.addEventListener('submit', function(e) {
-        // Remove any existing hidden inputs for selected files
+    mainFormElement.addEventListener('submit', function (e) {
+        // Remove any previously injected hidden inputs
         this.querySelectorAll('input[name="selected_files"]').forEach(el => el.remove());
+        this.querySelectorAll('input[name="clear_tags"]').forEach(el => el.remove());
 
         // Add selected file indices
         document.querySelectorAll('.file-select:checked').forEach(checkbox => {
@@ -74,6 +120,15 @@ if (mainFormElement) {
             input.name = 'selected_files';
             input.value = checkbox.value;
             this.appendChild(input);
+        });
+
+        // Add clear_tags for any cleared fields
+        document.querySelectorAll('.manual-tag-input[data-cleared="1"]').forEach(tagInput => {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'clear_tags';
+            hidden.value = tagInput.id;
+            this.appendChild(hidden);
         });
     });
 }

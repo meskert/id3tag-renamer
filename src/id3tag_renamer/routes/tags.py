@@ -38,6 +38,8 @@ async def update_tags(
     new_filename: Optional[str] = Form(None),
     album_art: Optional[UploadFile] = File(None),
     selected_files: List[int] = Form(default=[]),
+    clear_tags: List[str] = Form(default=[]),
+    direct_apply: bool = Form(False),
     username: str = Depends(require_user),
 ):
     """Update tags for selected files."""
@@ -75,7 +77,7 @@ async def update_tags(
         if content:
             tags["album_art"] = content
 
-    manager.update_tags(tags, files_to_process)
+    manager.update_tags(tags, files_to_process, clear_tags=clear_tags)
 
     # Handle filename rename if provided (for single file edits)
     if new_filename and len(files_to_process) == 1:
@@ -90,6 +92,23 @@ async def update_tags(
                 "old_path": music_file.path,
                 "new_path": new_path
             })
+
+    if direct_apply:
+        manager.apply(dry_run=False)
+        manager.scan()
+        files_data = get_files_data(manager)
+        return templates.TemplateResponse(
+            request,
+            "index.html",
+            {
+                "directory": str(manager.directory),
+                "files": files_data,
+                "changes": [],
+                "mode": "manual",
+                "selected_indices": [],
+                "music_root": str(config.DEFAULT_MUSIC_DIR),
+            },
+        )
 
     changes = manager.apply(dry_run=True)
 
@@ -112,5 +131,6 @@ async def update_tags(
             "genre": genre,
             "date": date,
             "comment": comment,
+            "clear_tags": clear_tags,
         },
     )

@@ -1,32 +1,139 @@
-/* Main layout */
+/* ── App layout ─────────────────────────────────────────── */
 body {
     padding: 0;
-}
-
-.navbar-brand {
-    font-weight: bold;
-}
-
-.main-content {
-    display: flex;
-    height: calc(100vh - 100px);
     overflow: hidden;
 }
 
-.left-panel {
+.app-layout {
+    display: flex;
+    height: calc(100vh - 48px); /* 48px = navbar */
+}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.mode-sidebar {
+    width: 190px;
+    min-width: 190px;
+    background: #212529;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.2s ease, min-width 0.2s ease;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.mode-sidebar.collapsed {
+    width: 50px;
+    min-width: 50px;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    color: #adb5bd;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    text-align: right;
+    display: block;
+    width: 100%;
+    transition: color 0.15s;
+}
+
+.sidebar-toggle:hover {
+    color: #fff;
+}
+
+.mode-btn {
+    background: none;
+    border: none;
+    color: #adb5bd;
+    padding: 10px 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+    border-radius: 0;
+}
+
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.mode-btn.active {
+    background: #0d6efd;
+    color: #fff;
+}
+
+.mode-btn i {
+    font-size: 1.05rem;
+    min-width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.mode-sidebar.collapsed .sidebar-label {
+    display: none;
+}
+
+/* ── Main area ───────────────────────────────────────────── */
+.main-area {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
-/* Table styles */
-.table-responsive {
+/* ── Toolbar ─────────────────────────────────────────────── */
+.toolbar {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+.toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    flex-wrap: wrap;
+}
+
+.toolbar-row-fields {
+    border-top: 1px solid #f0f0f0;
+    padding-top: 5px;
+    padding-bottom: 7px;
+}
+
+.toolbar-field-label {
+    font-size: 0.7rem;
+    color: #6c757d;
+    margin-bottom: 1px;
+    display: block;
+}
+
+/* ── Content area (table) ────────────────────────────────── */
+.content-area {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.content-area .table-responsive {
     flex: 1;
     overflow: auto;
-    overflow-x: auto;
 }
 
+/* ── Table styles ────────────────────────────────────────── */
 .table {
     table-layout: auto;
     width: 100%;
@@ -54,7 +161,7 @@ body {
     font-size: 0.875rem;
 }
 
-/* Column resizer */
+/* ── Column resizer ──────────────────────────────────────── */
 .resizer {
     position: absolute;
     right: 0;
@@ -71,7 +178,7 @@ body {
     background: rgba(0, 0, 0, 0.2);
 }
 
-/* Sortable columns */
+/* ── Sortable columns ────────────────────────────────────── */
 .sortable {
     cursor: pointer;
     user-select: none;
@@ -96,7 +203,14 @@ body {
     opacity: 1;
 }
 
-/* Preview and controls */
+/* ── Manual tag: cleared state ───────────────────────────── */
+.manual-tag-input.is-cleared {
+    border-color: #dc3545;
+    color: #dc3545;
+    font-style: italic;
+}
+
+/* ── Preview box (legacy, kept for compat) ───────────────── */
 .preview-box {
     padding: 15px;
     display: flex;
@@ -110,32 +224,50 @@ body {
     margin-bottom: 15px;
 }
 
-.controls-bar {
-    background: #fff;
-    border-bottom: 1px solid #dee2e6;
-    padding: 10px 15px;
+/* ── Navbar brand ────────────────────────────────────────── */
+.navbar-brand {
+    font-weight: bold;
 }
 
-/* Login page */
+/* ── Login page ──────────────────────────────────────────── */
 body.bg-light {
     background-color: #f8f9fa !important;
+    overflow: auto;
 }
 
-/* Responsive design */
-@media (max-width: 992px) {
-    .main-content {
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .app-layout {
         flex-direction: column;
         height: auto;
         overflow: visible;
     }
 
-    .right-panel {
-        width: 100%;
-        border-left: none;
-        border-top: 1px solid #dee2e6;
+    body {
+        overflow: auto;
     }
 
-    .table-responsive {
+    .mode-sidebar {
+        width: 100% !important;
+        min-width: 100% !important;
+        flex-direction: row;
+        height: auto;
+    }
+
+    .mode-sidebar.collapsed {
+        width: 100% !important;
+    }
+
+    .mode-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .content-area {
+        overflow: visible;
+    }
+
+    .content-area .table-responsive {
         max-height: 500px;
     }
 }

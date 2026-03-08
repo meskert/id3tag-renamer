@@ -5,33 +5,38 @@
 {% block content %}
 {% include "components/navbar.html" %}
 
-<div class="container-fluid p-0">
-    {% include "components/modals/browse.html" %}
-    {% include "components/modals/preview.html" %}
-    {% include "components/modals/edit.html" %}
-    {% include "components/modals/lookup.html" %}
+<div class="app-layout">
+    {% include "components/sidebar.html" %}
 
-    {% include "components/controls.html" %}
+    <div class="main-area">
+        {% include "components/modals/browse.html" %}
+        {% include "components/modals/preview.html" %}
+        {% include "components/modals/edit.html" %}
+        {% include "components/modals/lookup.html" %}
 
-    {% if directory %}
-        {% include "components/table.html" %}
-    {% else %}
-    <div class="d-flex align-items-center justify-content-center" style="height: calc(100vh - 100px);">
-        <div class="text-center">
-            <h2 class="text-muted">Welcome to ID3Tag-Renamer</h2>
-            <p class="lead">Select your music directory and click <strong>Scan</strong> to load files.</p>
-            <div class="mt-4">
-                <button class="btn btn-primary btn-lg" onclick="document.getElementById('browse-btn').click()">Select Directory</button>
+        {% include "components/controls.html" %}
+
+        <div class="content-area">
+            {% if directory %}
+                {% include "components/table.html" %}
+            {% else %}
+            <div class="d-flex align-items-center justify-content-center h-100">
+                <div class="text-center">
+                    <h2 class="text-muted">Welcome to ID3Tag-Renamer</h2>
+                    <p class="lead">Select your music directory and click <strong>Scan</strong> to load files.</p>
+                    <div class="mt-4">
+                        <button class="btn btn-primary btn-lg" onclick="document.getElementById('browse-btn').click()">Select Directory</button>
+                    </div>
+                </div>
             </div>
+            {% endif %}
         </div>
     </div>
-    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Set global variables for JavaScript modules
     window.musicRootPath = "{{ music_root }}";
     window.currentDirectory = "{{ directory }}";
     window.hasChanges = {% if changes %}true{% else %}false{% endif %};

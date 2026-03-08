@@ -166,7 +166,12 @@ async def apply_metadata(
                 "raw_tags": tags
             })
 
-    return {"status": "success", "message": f"Updated {len(request.updates)} files"}
+    if request.apply_directly:
+        manager.apply(dry_run=False)
+        manager.scan()
+        return {"status": "success", "applied": True}
+
+    return {"status": "success", "applied": False, "message": f"Staged {len(request.updates)} files"}
 
 
 @router.post("/lookup_metadata")
