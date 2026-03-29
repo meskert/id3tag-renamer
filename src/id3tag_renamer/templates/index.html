@@ -15,6 +15,7 @@
         {% include "components/modals/lookup.html" %}
 
         {% include "components/controls.html" %}
+        {% include "components/player.html" %}
 
         <div class="content-area">
             {% if directory %}
@@ -47,4 +48,5 @@
 <script src="{{ url_for('static', path='/js/preview.js') }}"></script>
 <script src="{{ url_for('static', path='/js/forms.js') }}"></script>
 <script src="{{ url_for('static', path='/js/lookup.js') }}"></script>
+<script src="{{ url_for('static', path='/js/player.js') }}"></script>
 {% endblock %}

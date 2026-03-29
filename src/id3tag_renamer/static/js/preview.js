@@ -41,6 +41,20 @@ if (editModal) {
         };
 
         document.getElementById('editModalLabel').textContent = `Edit: ${filename}`;
+
+        // Load audio for playback
+        const editAudio = document.getElementById('edit-modal-audio');
+        if (editAudio) {
+            editAudio.src = `/api/stream/${index}`;
+        }
+    });
+
+    editModal.addEventListener('hidden.bs.modal', function () {
+        const editAudio = document.getElementById('edit-modal-audio');
+        if (editAudio) {
+            editAudio.pause();
+            editAudio.src = '';
+        }
     });
 }
 

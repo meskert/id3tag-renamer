@@ -1,7 +1,10 @@
 """File data management service."""
+import logging
 from pathlib import Path
 from typing import List, Dict, Any
 from ..config import config
+
+logger = logging.getLogger(__name__)
 
 
 def get_files_data(manager) -> List[Dict[str, Any]]:
@@ -43,9 +46,6 @@ def get_files_data(manager) -> List[Dict[str, Any]]:
         for tag in f.get_supported_tags():
             tag_value = f.get_tag(tag)
             data[tag] = tag_value
-            # Debug print for first file only
-            if i == 0:
-                print(f"File {f.path.name}: {tag} = {repr(tag_value)}")
 
         files_data.append(data)
 
