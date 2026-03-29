@@ -28,6 +28,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=config.WEB_SESSION_SECRET,
     max_age=config.SESSION_MAX_AGE,
+    https_only=config.SESSION_HTTPS_ONLY,
 )
 app.middleware("http")(csrf_middleware)
 
