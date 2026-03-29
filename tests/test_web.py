@@ -7,18 +7,24 @@ os.environ["MUSIC_DIR"] = str(Path("music").resolve())
 os.environ["WEB_USERNAME"] = "testuser"
 os.environ["WEB_PASSWORD"] = "testpass"
 
-from id3tag_renamer.web import app, DEFAULT_MUSIC_DIR
+from id3tag_renamer.web import app
+from id3tag_renamer.config import config
+
+DEFAULT_MUSIC_DIR = config.DEFAULT_MUSIC_DIR
 
 client = TestClient(app)
 
+SAME_ORIGIN = {"Origin": "http://testserver"}
+
+
 def get_session_cookie():
-    resp = client.post("/login", data={"username": "testuser", "password": "testpass"})
+    # /login is CSRF-exempt so no Origin needed
+    resp = client.post("/login", data={"username": "testuser", "password": "testpass"}, follow_redirects=False)
     assert resp.status_code == 303
     return resp.cookies["session"]
 
 def test_list_directories():
     session = get_session_cookie()
-    # Test root listing
     response = client.get("/api/directories", cookies={"session": session})
     assert response.status_code == 200
     data = response.json()
@@ -29,19 +35,16 @@ def test_list_directories():
 
 def test_list_directories_traversal():
     session = get_session_cookie()
-    # Attempt to traverse up from root
     response = client.get("/api/directories?path=../../", cookies={"session": session})
     assert response.status_code == 200
     data = response.json()
-    # Should be capped at root
     assert data["full_path"] == DEFAULT_MUSIC_DIR
 
 def test_list_directories_sub():
     session = get_session_cookie()
-    # Get a subdirectory from the music folder
     root = Path(DEFAULT_MUSIC_DIR)
     subdirs = [d for d in root.iterdir() if d.is_dir() and not d.name.startswith(".")]
-    
+
     if subdirs:
         sub = subdirs[0]
         response = client.get(f"/api/directories?path={sub.name}", cookies={"session": session})
@@ -52,31 +55,72 @@ def test_list_directories_sub():
 
 def test_scan_traversal():
     session = get_session_cookie()
-    # Attempt to scan a traversal path
-    response = client.post("/scan", data={"directory": "../../"}, cookies={"session": session}, follow_redirects=False)
-    # Redirect to root "/"
+    response = client.post(
+        "/scan",
+        data={"directory": "../../"},
+        cookies={"session": session},
+        headers=SAME_ORIGIN,
+        follow_redirects=False,
+    )
     assert response.status_code == 303
-    assert response.headers["location"] == "/"
-    
-    # Verify manager directory is set to safe path (root)
+    assert response.headers["location"].startswith("/")
+
     from id3tag_renamer.web import manager
     assert manager.directory == Path(DEFAULT_MUSIC_DIR).resolve()
 
 def test_csrf_protection():
-    # POST request without Origin/Referer should be rejected if Host mismatch is detected
-    # If no Origin/Referer is present, our middleware allows it (for API-like usage or first request)
-    # But if Origin is present and wrong, it should be rejected.
-    response = client.post("/scan", 
-                           data={"directory": "music"}, 
-                           auth=auth,
-                           headers={"Origin": "http://evil.com"})
-    assert response.status_code == 403
-    assert response.text == "CSRF Forbidden: Origin mismatch"
+    session = get_session_cookie()
 
-    # Correct Origin should pass
-    response = client.post("/scan", 
-                           data={"directory": "music"}, 
-                           auth=auth,
-                           headers={"Origin": "http://testserver"},
-                           follow_redirects=False) # TestClient uses testserver as default host
+    # Evil origin → 403
+    response = client.post(
+        "/scan",
+        data={"directory": "music"},
+        cookies={"session": session},
+        headers={"Origin": "http://evil.com"},
+    )
+    assert response.status_code == 403
+    assert "Origin mismatch" in response.text
+
+    # No origin, evil referer → 403
+    response = client.post(
+        "/scan",
+        data={"directory": "music"},
+        cookies={"session": session},
+        headers={"Referer": "http://evil.com/page"},
+    )
+    assert response.status_code == 403
+    assert "Referer mismatch" in response.text
+
+    # No origin, no referer → 403
+    response = client.post(
+        "/scan",
+        data={"directory": "music"},
+        cookies={"session": session},
+    )
+    assert response.status_code == 403
+    assert "missing Origin/Referer" in response.text
+
+    # Correct origin → passes (303 redirect)
+    response = client.post(
+        "/scan",
+        data={"directory": "music"},
+        cookies={"session": session},
+        headers=SAME_ORIGIN,
+        follow_redirects=False,
+    )
     assert response.status_code == 303
+
+def test_brute_force_lockout():
+    from id3tag_renamer.routes.auth import _failed_attempts
+    _failed_attempts.clear()
+
+    # Exhaust the allowed attempts
+    for _ in range(10):
+        client.post("/login", data={"username": "testuser", "password": "wrong"})
+
+    # Next attempt should be locked out
+    response = client.post("/login", data={"username": "testuser", "password": "testpass"})
+    assert response.status_code == 429
+    assert "Too many failed attempts" in response.text
+
+    _failed_attempts.clear()

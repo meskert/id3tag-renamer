@@ -17,6 +17,8 @@ class Config:
 
         # Session settings
         self.SESSION_MAX_AGE = int(os.getenv("WEB_SESSION_MAX_AGE", "1800"))  # 30 minutes
+        # Set WEB_HTTPS_ONLY=true when serving behind TLS to add the Secure cookie flag
+        self.SESSION_HTTPS_ONLY = os.getenv("WEB_HTTPS_ONLY", "false").lower() == "true"
 
         # Music directory
         self.DEFAULT_MUSIC_DIR = os.getenv("MUSIC_DIR", "/music")

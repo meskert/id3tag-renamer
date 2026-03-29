@@ -9,7 +9,10 @@ async def get_current_user(request: Request) -> Optional[str]:
     return request.session.get("user")
 
 
-def require_user(current_user: Optional[str] = Depends(get_current_user)) -> str:
+async def require_user(
+    request: Request,
+    current_user: Optional[str] = Depends(get_current_user),
+) -> str:
     """
     Require authentication for a route.
 
@@ -19,6 +22,8 @@ def require_user(current_user: Optional[str] = Depends(get_current_user)) -> str
     if not config.WEB_REQUIRES_AUTH:
         return current_user or "guest"
     if not current_user:
+        # Save the intended URL so login can redirect back to it
+        request.session["next"] = str(request.url)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Login required"
         )
