@@ -1,4 +1,6 @@
 """ID3Tag-Renamer Web Application."""
+import logging
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
@@ -8,8 +10,12 @@ import uvicorn
 
 from id3tag_renamer import MusicManager
 from .config import config
+from .logging_config import setup_logging
 from .middleware import csrf_middleware
 from .routes import register_routes
+
+setup_logging(level=config.LOG_LEVEL)
+logger = logging.getLogger(__name__)
 
 
 # Create FastAPI app

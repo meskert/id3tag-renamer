@@ -3,7 +3,7 @@
     <table class="table table-hover table-sm mb-0" id="files-table">
         <thead class="table-light sticky-top">
             <tr>
-                <th style="width: 70px;"><input type="checkbox" id="select-all"></th>
+                <th style="width: 90px;"><input type="checkbox" id="select-all"></th>
                 <th class="sortable" data-column="0">Path</th>
                 <th class="sortable" data-column="1">Filename</th>
                 <th class="sortable" data-column="2">Artist</th>
@@ -35,6 +35,12 @@
                             data-filename-stem="{{ file.name_stem }}"
                             title="Edit single file">
                         <small>✏️</small>
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-xs p-0 px-1 play-btn"
+                            data-index="{{ file.index }}"
+                            data-filename="{{ file.name }}"
+                            title="Play">
+                        <small>▶</small>
                     </button>
                 </td>
                 <td class="text-truncate">{{ file.root_rel_path }}</td>

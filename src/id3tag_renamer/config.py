@@ -27,6 +27,9 @@ class Config:
         self.HOST = os.getenv("HOST", "0.0.0.0")
         self.PORT = int(os.getenv("PORT", "8000"))
 
+        # Logging
+        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
         # Template directory
         self.TEMPLATE_DIR = Path(__file__).parent / "templates"
         self.STATIC_DIR = Path(__file__).parent / "static"

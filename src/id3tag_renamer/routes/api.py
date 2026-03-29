@@ -1,8 +1,8 @@
 """API routes for AJAX requests."""
 from pathlib import Path
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Body
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, Body, Request
+from fastapi.responses import Response, FileResponse
 from pydantic import BaseModel
 from ..config import config
 from ..dependencies import require_user
@@ -96,6 +96,29 @@ async def get_album_art(index: int, username: str = Depends(require_user)):
         mime = "image/png"
 
     return Response(content=art_data, media_type=mime)
+
+
+_AUDIO_MIME = {
+    ".mp3": "audio/mpeg",
+    ".flac": "audio/flac",
+    ".m4a": "audio/mp4",
+    ".ogg": "audio/ogg",
+    ".wav": "audio/wav",
+    ".aac": "audio/aac",
+}
+
+
+@router.get("/stream/{index}")
+async def stream_audio(index: int, username: str = Depends(require_user)):
+    """Stream an audio file by its index in the manager's file list."""
+    manager = get_manager()
+
+    if index < 0 or index >= len(manager.files):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    path = manager.files[index].path
+    mime = _AUDIO_MIME.get(path.suffix.lower(), "application/octet-stream")
+    return FileResponse(path=str(path), media_type=mime, filename=path.name)
 
 
 class LookupRequest(BaseModel):

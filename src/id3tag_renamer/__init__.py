@@ -1,8 +1,11 @@
 from typing import List, Optional, Callable
+import logging
 import os
 import re
 from pathlib import Path
 import mutagen
+
+logger = logging.getLogger(__name__)
 
 class MusicFile:
     """Represents a single music file and its tags."""
@@ -488,32 +491,35 @@ class MusicManager:
                         # If we have raw_tags, it's a manual update which might include binary data
                         tags_to_use = change.get("raw_tags", change.get("changes", {}))
                         clear_tags_for_change = change.get("clear_tags", [])
-                        print(f"Applying tags to {change['path']}: tags_to_use = {tags_to_use}, clear_tags = {clear_tags_for_change}")
+                        logger.debug(
+                            "Applying tags",
+                            extra={"path": str(change["path"]), "tags": list(tags_to_use.keys()), "clear_tags": clear_tags_for_change},
+                        )
                         tags_written = []
                         for tag, value in tags_to_use.items():
                             if tag == "album_art" and value == "<binary data>":
                                 # This shouldn't happen if we use raw_tags correctly
                                 continue
                             if not value and tag != "album_art":
-                                print(f"Skipping empty tag: {tag}")
+                                logger.debug("Skipping empty tag", extra={"tag": tag})
                                 continue
-                            print(f"Setting {tag} = {repr(value)}")
+                            logger.debug("Setting tag", extra={"tag": tag, "value": repr(value)})
                             music_file.set_tag(tag, value)
                             tags_written.append(tag)
 
                         # Apply explicit clears (set to empty string)
                         for tag in clear_tags_for_change:
                             if tag not in tags_written:
-                                print(f"Clearing {tag}")
+                                logger.debug("Clearing tag", extra={"tag": tag})
                                 music_file.set_tag(tag, "")
                                 tags_written.append(tag)
 
                         if tags_written:
-                            print(f"Saving tags: {tags_written}")
+                            logger.info("Tags saved", extra={"path": str(change["path"]), "tags": tags_written})
                             music_file.save_tags()
                             change["tags_written"] = tags_written
                         else:
-                            print("No tags to save")
+                            logger.debug("No tags to save", extra={"path": str(change["path"])})
                             change["tags_written"] = []
                         change["success"] = True
                     except Exception as e:
@@ -521,8 +527,11 @@ class MusicManager:
                         change["success"] = False
                         change["error"] = str(e)
                         change["traceback"] = traceback.format_exc()
-                        print(f"Error applying tag change to {change.get('path')}: {e}")
-                        print(traceback.format_exc())
+                        logger.error(
+                            "Error applying tag change",
+                            extra={"path": str(change.get("path")), "error": str(e)},
+                            exc_info=True,
+                        )
                 else:
                     change["success"] = True
             
